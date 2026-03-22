@@ -14,7 +14,6 @@ git checkout event-loop
 
 ```bash
 docker compose up --build -d
-docker compose exec app sh
 node <назва_файлу.ts>
 ```
 
