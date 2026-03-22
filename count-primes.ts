@@ -1,10 +1,10 @@
 // створимо інтервал, який буде робити пінг кожну мілісекунду
-const interval = setInterval(() => {
+setInterval(() => {
   console.log('ping');
 }, 100);
 
 // через 1 секунду запустимо синхронну блокуючу функцію, яка робить важке обчислення
-const timeout = setTimeout(() => {
+setTimeout(() => {
   console.log(`Blocking calculation started at ${performance.now()}`);
 
   // перебір усіх простих чисел до limit
@@ -12,7 +12,7 @@ const timeout = setTimeout(() => {
     let count = 0;
     for (let num = 2; num <= limit; num++) {
       let isPrime = true;
-      for (let i = 2; i * i <= i; i++) {
+      for (let i = 2; i * i <= num; i++) {
         if (num % i === 0) {
           isPrime = false;
           break;

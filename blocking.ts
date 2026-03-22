@@ -14,7 +14,7 @@ generateRandomFile('text_2.txt', 1024 * 1024 * 2030);
 generateRandomFile('text_3.txt', 1024 * 1024 * 2030);
 console.log(`Files written in ${performance.now() - start} ms`);
 
-// тепер прочитаємо творені файли також синхронно, відслідкуємо час та виведемо розміри файлів як індикатор, що вони були успішно прочитані
+// тепер прочитаємо створені файли також синхронно, відслідкуємо час та виведемо розміри файлів як індикатор, що вони були успішно прочитані
 function blockingFileReading(): void {
   const start = performance.now();
 
