@@ -3,8 +3,7 @@
 ## Локальний запуск
 
 ```bash
-git clone https://github.com/olyaprykhodko/evoverse/tree/event-loop
+git clone https://github.com/olyaprykhodko/evoverse
 cd evoverse
-
-
+git checkout event-loop
 ```
