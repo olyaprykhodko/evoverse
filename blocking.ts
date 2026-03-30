@@ -22,9 +22,7 @@ function blockingFileReading(): void {
   const t2 = readFileSync('text_2.txt');
   const t3 = readFileSync('text_3.txt');
 
-  const toGb = (bytes: number) => {
-    return (bytes / 10 ** 9).toFixed(2);
-  };
+  const toGb = (bytes: number) => (bytes / 10 ** 9).toFixed(2);
 
   console.log(toGb(t1.length), toGb(t2.length), toGb(t3.length));
 
