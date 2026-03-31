@@ -14,6 +14,14 @@ export type FileRecord = {
   createdAt: Date | null;
 };
 
+const ALLOWED_EXT: Record<string, string> = {
+  pdf: 'application/pdf',
+  png: 'image/png',
+  jpeg: 'image/jpeg',
+  txt: 'text/plain',
+  json: 'application/json',
+};
+
 const STORAGE_LIMIT = 3 * 1024 * 1024;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const FILE_DIR = path.join(__dirname, 'files');
@@ -30,4 +38,24 @@ const getStorageSize = (): number => {
   return totalSize;
 };
 
-export { STORAGE_LIMIT, FILE_DIR, storage, getStorageSize };
+let reservedBytes = 0;
+
+const reserveStorage = (fileSize: number): boolean => {
+  if (getStorageSize() + reservedBytes + fileSize > STORAGE_LIMIT) return false;
+  reservedBytes += fileSize;
+  return true;
+};
+
+const clearReserve = (fileSize: number): void => {
+  reservedBytes -= fileSize;
+};
+
+export {
+  STORAGE_LIMIT,
+  ALLOWED_EXT,
+  FILE_DIR,
+  storage,
+  getStorageSize,
+  reserveStorage,
+  clearReserve,
+};
