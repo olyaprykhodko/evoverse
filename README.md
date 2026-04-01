@@ -9,8 +9,6 @@
 - Сервер: Node.js + TypeScript + ESM + `node:http` + бібліотека `file-type`
 - Клієнт: React 19 + TypeScript + Tailwind CSS
 
----
-
 ## Опис
 
 - Завантаження файлів потоком (pipe)
@@ -45,7 +43,15 @@
 
 ## Запуск
 
-### Сервер працює на `http://localhost:3500`
+```bash
+git clone https://github.com/olyaprykhodko/evoverse
+cd evoverse
+git checkout http-server
+```
+
+### Локальний запуск
+
+1. Сервер (`http://localhost:3500`)
 
 ```bash
 cd server
@@ -54,13 +60,19 @@ npm i
 npm start
 ```
 
-### Клієнт працює на `http://localhost:3000`
+2. Клієнт (`http://localhost:3000`)
 
 ```bash
 cd client
 cp .env.example .env
-npm install
+npm i
 npm start
+```
+
+### Docker
+
+```bash
+docker compose up --build -d
 ```
 
 ---
