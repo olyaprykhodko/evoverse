@@ -7,7 +7,7 @@ import {
   clearReserve,
   reserveStorage,
   ALLOWED_EXT,
-  FILE_DIR,
+  FILES_DIR,
 } from '../storage.ts';
 import { sendResponse, normalizeFileName } from '../utils.ts';
 
@@ -48,7 +48,7 @@ export default function handleUploadFile(
   }
 
   const id = crypto.randomUUID();
-  const filePath = path.join(FILE_DIR, id);
+  const filePath = path.join(FILES_DIR, id);
   const stream = fs.createWriteStream(filePath);
   const size = parseInt(fileSize);
 

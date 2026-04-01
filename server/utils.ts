@@ -2,24 +2,25 @@ import path from 'node:path';
 
 interface SendResponseBody {
   message?: string;
+  error?: string;
   data?: unknown;
 }
 
-interface SendResponse {
-  (
-    res: import('http').ServerResponse,
-    status: number,
-    body: SendResponseBody,
-  ): void;
-}
+type OutgoingHeaders = Record<string, string | string[] | undefined>;
 
-export const sendResponse: SendResponse = (res, status, body) => {
-  res.writeHead(status, { 'Content-Type': 'application/json' });
-  const response = {
-    ...body,
-    timestamp: new Date().toISOString(),
-  };
-  res.end(JSON.stringify(response));
+export const sendResponse = (
+  res: import('http').ServerResponse,
+  status: number,
+  body?: SendResponseBody,
+  headers?: OutgoingHeaders,
+): void => {
+  if (body === undefined) {
+    res.writeHead(status, headers);
+    res.end();
+    return;
+  }
+  res.writeHead(status, { 'Content-Type': 'application/json', ...headers });
+  res.end(JSON.stringify({ ...body, timestamp: new Date().toISOString() }));
 };
 
 export const normalizeFileName = (
