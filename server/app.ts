@@ -4,15 +4,40 @@ import handleGetFile from './handlers/handleGetFile.ts';
 import handleGetFilesList from './handlers/handleGetFilesList.ts';
 import handleGetUploadStatus from './handlers/handleGetUploadStatus.ts';
 import handleUploadFile from './handlers/handleUploadFile.ts';
+import { sendResponse } from './utils.ts';
+import handleRemoveAllFiles from './handlers/handleRemoveAllFiles.ts';
 
-// ДЗ: написати веб-сервер (на модулі http) для завантаження великих файлів частками.
-// передбачити інтерфейс списку завантажених файлів,
-// просмотр файлу, видалення файлу,
-// статус виконання завантаження.
-// Додати ліміт (квоту) на файлове сховище, тобто сумарно можна завантажити не більш ніж 3Мб файлів
+const client = process.env.ORIGIN || 'http://localhost:3000';
 
 const app = http.createServer((req, res) => {
-  const { url, method } = req;
+  const { url, method, headers } = req;
+  const origin = headers.origin;
+
+  res.setHeader('Access-Control-Allow-Origin', client);
+
+  if (origin === client) {
+    res.setHeader('Access-Control-Allow-Origin', client);
+    res.setHeader(
+      'Access-Control-Allow-Methods',
+      'GET, POST, PUT, DELETE, OPTIONS',
+    );
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
+
+  if (origin && origin !== client) {
+    sendResponse(res, 403, { error: 'CORS error: Origin not allowed' });
+    return;
+  }
+
+  if (method === 'OPTIONS') {
+    sendResponse(res, 200, undefined, {
+      'Access-Control-Allow-Origin': client,
+      'Access-Control-Allow-Methods': 'GET,POST,DELETE,OPTIONS',
+      'Access-Control-Allow-Headers':
+        headers['access-control-request-headers'] || 'Content-Type',
+    });
+    return;
+  }
 
   if (url === '/upload' && method === 'POST') {
     handleUploadFile(req, res);
@@ -26,7 +51,9 @@ const app = http.createServer((req, res) => {
     handleGetFilesList(res);
   } else if (url?.startsWith('/files/') && method === 'GET') {
     handleGetFile(req, res);
-  } else if (req.url?.startsWith('/files/') && req.method === 'DELETE') {
+  } else if (url === '/files/remove' && method === 'DELETE') {
+    handleRemoveAllFiles(req, res);
+  } else if (url?.startsWith('/files/') && req.method === 'DELETE') {
     handleFileDelete(req, res);
   }
 });
