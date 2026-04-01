@@ -11,6 +11,8 @@ import Header from './components/Header';
 import UploadForm from './components/UploadForm';
 import Message from './components/Message';
 import FilesList from './components/FilesList';
+import ClearButton from './components/ClearButton';
+import handleDeleteAllFiles from './api/handleDeleteAllFiles';
 
 const api = process.env.API_URL || 'http://localhost:3500';
 
@@ -98,6 +100,22 @@ export default function App() {
           formatDate={formatDate}
           fetchFiles={fetchFiles}
         />
+
+        {files.length > 0 && (
+          <div className="flex justify-end mt-4">
+            <ClearButton
+              onConfirm={() =>
+                handleDeleteAllFiles(
+                  setError,
+                  setSuccess,
+                  setFiles,
+                  fetchFiles,
+                  api,
+                )
+              }
+            />
+          </div>
+        )}
       </div>
     </div>
   );
