@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import fetchFiles, { AppFile } from './api/fetchFiles';
+import fetchFiles, { AppFile, StorageInfo } from './api/fetchFiles';
 import handleUploadFile from './api/handleUploadFile';
 import handleDeleteFile from './api/handleDeleteFile';
 import handleView from './utils/handleView';
@@ -18,6 +18,7 @@ const api = process.env.API_URL || 'http://localhost:3500';
 
 export default function App() {
   const [files, setFiles] = useState<AppFile[] | []>([]);
+  const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    fetchFiles(setFiles, setError, api);
+    fetchFiles(setFiles, setError, api, setStorageInfo);
   }, []);
 
   const progressValue = progress
@@ -84,6 +85,8 @@ export default function App() {
           files={files}
           setFiles={setFiles}
           setError={setError}
+          storageInfo={storageInfo}
+          setStorageInfo={setStorageInfo}
           api={api}
           handleView={(id) => handleView(api, id)}
           handleDelete={(id) =>

@@ -1,4 +1,5 @@
 import { ChangeEvent, RefObject, Dispatch, SetStateAction } from 'react';
+import { translateMessage } from '../utils/translateMessage';
 
 export default async function handleUploadFile(
   e: ChangeEvent<HTMLInputElement>,
@@ -31,7 +32,7 @@ export default async function handleUploadFile(
     const data = await res.json();
 
     if (!res.ok) {
-      setError(data.message ?? 'Помилка завантаження');
+      setError(translateMessage(data.message) ?? 'Помилка завантаження');
       setUploading(false);
       return;
     }

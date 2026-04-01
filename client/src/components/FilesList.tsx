@@ -1,9 +1,11 @@
-import { AppFile } from '../api/fetchFiles';
+import { AppFile, StorageInfo } from '../api/fetchFiles';
 
 interface FilesListProps {
   files: AppFile[];
   setFiles: (files: AppFile[]) => void;
   setError: (err: string | null) => void;
+  storageInfo: StorageInfo | null;
+  setStorageInfo: (info: StorageInfo) => void;
   api: string;
   handleView: (id: string) => void;
   handleDelete: (id: string) => void;
@@ -13,6 +15,7 @@ interface FilesListProps {
     setFiles: (files: AppFile[]) => void,
     setError: (err: string | null) => void,
     api: string,
+    setStorage?: (info: StorageInfo) => void,
   ) => void;
 }
 
@@ -20,6 +23,8 @@ export default function FilesList({
   files,
   setFiles,
   setError,
+  storageInfo,
+  setStorageInfo,
   api,
   handleView,
   handleDelete,
@@ -27,14 +32,43 @@ export default function FilesList({
   formatDate,
   fetchFiles,
 }: FilesListProps) {
+  const usedPct = storageInfo
+    ? Math.min(100, Math.round((storageInfo.used / storageInfo.limit) * 100))
+    : 0;
+
   return (
     <section className="mt-8">
+      {storageInfo && (
+        <div className="mb-4">
+          <div className="flex justify-between text-xs text-[#8b949e] mb-1">
+            <span>Сховище</span>
+            <span>
+              {formatSize(storageInfo.used)} із {formatSize(storageInfo.limit)}{' '}
+              використано
+            </span>
+          </div>
+          <div className="w-full h-2 rounded bg-[#21262d] overflow-hidden">
+            <div
+              className="h-full rounded transition-all duration-300"
+              style={{
+                width: `${usedPct}%`,
+                backgroundColor:
+                  usedPct >= 90
+                    ? '#f85149'
+                    : usedPct >= 70
+                      ? '#d29922'
+                      : '#238636',
+              }}
+            />
+          </div>
+        </div>
+      )}
       <div className="flex justify-between items-center mb-3">
         <h2 className="text-xs font-semibold text-background-700 tracking-widest uppercase">
           Файли
         </h2>
         <button
-          onClick={() => fetchFiles(setFiles, setError, api)}
+          onClick={() => fetchFiles(setFiles, setError, api, setStorageInfo)}
           className="text-sm px-2 py-1 rounded text-background-700 hover:text-background-900 hover:border-blue-500 transition"
         >
           ↺ Оновити
