@@ -1,4 +1,4 @@
-interface File {
+export interface AppFile {
   id: string;
   fileName: string;
   mimeType: string;
@@ -6,11 +6,11 @@ interface File {
   receivedSize: number;
   status: 'loading' | 'done' | 'error';
   path: string;
-  createdAt: Date | null;
+  createdAt: string;
 }
 
 export default async function fetchFiles(
-  setFiles: (file: File[] | []) => void,
+  setFiles: (file: AppFile[] | []) => void,
   setError: (err: string | null) => void,
   api: string,
 ) {

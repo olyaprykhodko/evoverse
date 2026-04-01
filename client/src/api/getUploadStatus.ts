@@ -1,4 +1,4 @@
-type Progress = { id: string; received: number; total: number };
+export type Progress = { id: string; received: number; total: number };
 
 export default function getUploadStatus(
   id: string,
@@ -6,12 +6,13 @@ export default function getUploadStatus(
   uploadRef: React.RefObject<NodeJS.Timeout | null>,
   setProgress: (progress: Progress | null) => void,
   setUploading: (uploading: boolean) => void,
-  setSuccess: (msg: string) => void,
-  setError: (msg: string) => void,
+  setSuccess: (message: string | null) => void,
+  setError: (err: string | null) => void,
   setFiles: (files: any[]) => void,
   fetchFiles: (
     setFiles: (files: any[]) => void,
-    setError: (msg: string) => void,
+    setError: (err: string | null) => void,
+    api: string,
   ) => void,
   api: string,
 ) {
@@ -29,7 +30,7 @@ export default function getUploadStatus(
         setProgress(null);
         if (status === 'done') {
           setSuccess('Файл успішно завантажено!');
-          fetchFiles(setFiles, setError);
+          fetchFiles(setFiles, setError, api);
         } else {
           setError('Помилка при завантаженні файлу');
         }
