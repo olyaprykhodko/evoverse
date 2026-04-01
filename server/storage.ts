@@ -50,6 +50,23 @@ const clearReserve = (fileSize: number): void => {
   reservedBytes -= fileSize;
 };
 
+const resolveUniqueFileName = (fileName: string): string => {
+  const existingNames = new Set([...storage.values()].map((r) => r.fileName));
+
+  if (!existingNames.has(fileName)) return fileName;
+
+  const ext = path.extname(fileName);
+  const base = path.basename(fileName, ext);
+
+  let counter = 1;
+  let freeName = `${base}-${counter}${ext}`;
+  while (existingNames.has(freeName)) {
+    counter++;
+    freeName = `${base}-${counter}${ext}`;
+  }
+  return freeName;
+};
+
 export {
   STORAGE_LIMIT,
   ALLOWED_EXT,
@@ -58,4 +75,5 @@ export {
   getStorageSize,
   reserveStorage,
   clearReserve,
+  resolveUniqueFileName,
 };

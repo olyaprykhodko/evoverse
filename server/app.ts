@@ -55,7 +55,11 @@ const app = http.createServer((req, res) => {
     handleRemoveAllFiles(req, res);
   } else if (url?.startsWith('/files/') && req.method === 'DELETE') {
     handleFileDelete(req, res);
+  } else {
+    sendResponse(res, 404, { message: 'Not found' });
   }
 });
 
 app.listen(3500, () => console.log('Server is running on port 3500'));
+
+app.on('error', (err) => console.error('Server error:', err));

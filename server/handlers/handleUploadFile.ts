@@ -10,6 +10,7 @@ import {
   reserveStorage,
   ALLOWED_EXT,
   FILES_DIR,
+  resolveUniqueFileName,
 } from '../storage.ts';
 import { sendResponse, normalizeFileName } from '../utils.ts';
 
@@ -49,22 +50,16 @@ export default function handleUploadFile(
     return;
   }
 
+  const resolvedName = resolveUniqueFileName(fileName);
+
   const id = crypto.randomUUID();
   const filePath = path.join(FILES_DIR, id);
   const stream = fs.createWriteStream(filePath);
   const size = parseInt(fileSize);
 
-  const existingFile = storage.get(fileName);
-  if (existingFile) {
-    sendResponse(res, 409, {
-      message: 'File with this name already exists',
-    });
-    return;
-  }
-
   storage.set(id, {
     id,
-    fileName: fileName,
+    fileName: resolvedName,
     mimeType: fileExt,
     size: size,
     receivedSize: 0,
@@ -142,6 +137,15 @@ export default function handleUploadFile(
         message: 'Upload failed',
       });
     });
+  });
+
+  req.on('error', () => {
+    stream.destroy();
+    fs.unlink(filePath, () => {
+      storage.delete(id);
+      clearReserve(size);
+    });
+    sendResponse(res, 500, { message: 'Upload failed' });
   });
 
   req.pipe(stream);
