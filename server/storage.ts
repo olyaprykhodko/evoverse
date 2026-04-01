@@ -24,7 +24,7 @@ const ALLOWED_EXT: Record<string, string> = {
 
 const STORAGE_LIMIT = 3 * 1024 * 1024;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const FILE_DIR = path.join(__dirname, 'files');
+const FILES_DIR = path.join(__dirname, 'files');
 
 const storage = new Map<string, FileRecord>();
 
@@ -53,7 +53,7 @@ const clearReserve = (fileSize: number): void => {
 export {
   STORAGE_LIMIT,
   ALLOWED_EXT,
-  FILE_DIR,
+  FILES_DIR,
   storage,
   getStorageSize,
   reserveStorage,

@@ -1,6 +1,8 @@
 import fs from 'node:fs';
+import fsPromises from 'node:fs/promises';
 import path from 'node:path';
 import crypto from 'crypto';
+import { fileTypeFromBuffer } from 'file-type';
 import { IncomingMessage, ServerResponse } from 'node:http';
 import {
   storage,
@@ -89,8 +91,30 @@ export default function handleUploadFile(
     }
   });
 
-  stream.on('finish', () => {
+  stream.on('finish', async () => {
     const record = storage.get(id);
+
+    const buffer = await fsPromises.readFile(filePath);
+    const detected = await fileTypeFromBuffer(buffer);
+    const allowedMimes = Object.values(ALLOWED_EXT);
+
+    const realMime = detected?.mime;
+    const isTextFile =
+      !realMime && (fileExt === 'text/plain' || fileExt === 'application/json');
+
+    if (
+      !isTextFile &&
+      (!realMime || realMime !== fileExt || !allowedMimes.includes(realMime))
+    ) {
+      fs.unlink(filePath, () => {
+        storage.delete(id);
+        clearReserve(parseInt(fileSize));
+      });
+      sendResponse(res, 415, {
+        message: `File type does not match declared format ${fileExt}"`,
+      });
+      return;
+    }
 
     if (record) {
       record.status = 'done';

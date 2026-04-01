@@ -1,5 +1,5 @@
 import { ServerResponse } from 'node:http';
-import { storage } from '../storage.ts';
+import { storage, getStorageSize, STORAGE_LIMIT } from '../storage.ts';
 import { sendResponse } from '../utils.ts';
 
 export default function handleGetFilesList(res: ServerResponse) {
@@ -12,7 +12,13 @@ export default function handleGetFilesList(res: ServerResponse) {
 
   sendResponse(res, 200, {
     message: 'Files list retreived',
-    data: { files },
+    data: {
+      files,
+      storage: {
+        used: getStorageSize(),
+        limit: STORAGE_LIMIT,
+      },
+    },
   });
   return;
 }
