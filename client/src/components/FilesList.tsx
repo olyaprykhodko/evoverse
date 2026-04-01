@@ -47,14 +47,14 @@ export default function FilesList({
               використано
             </span>
           </div>
-          <div className="w-full h-2 rounded bg-[#21262d] overflow-hidden">
+          <div className="w-full h-2 rounded bg-gray-400 overflow-hidden">
             <div
               className="h-full rounded transition-all duration-300"
               style={{
                 width: `${usedPct}%`,
                 backgroundColor:
                   usedPct >= 90
-                    ? '#f85149'
+                    ? '#b7664a'
                     : usedPct >= 70
                       ? '#d29922'
                       : '#238636',

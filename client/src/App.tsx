@@ -14,7 +14,7 @@ import FilesList from './components/FilesList';
 import ClearButton from './components/ClearButton';
 import handleDeleteAllFiles from './api/handleDeleteAllFiles';
 
-const api = process.env.API_URL || 'http://localhost:3500';
+const api = process.env.REACT_APP_API_URL || 'http://localhost:3500';
 
 export default function App() {
   const [files, setFiles] = useState<AppFile[] | []>([]);
