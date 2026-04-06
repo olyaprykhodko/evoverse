@@ -18,15 +18,6 @@ import {
 } from '#src/storage.js';
 import { AppError } from '#src/middlewares/error-handler.js';
 
-export const normalizeFileName = (fileName: string | string[] | undefined): string | undefined => {
-  if (!fileName) return undefined;
-  const raw = Array.isArray(fileName) ? fileName[0] : fileName;
-  if (!raw) return undefined;
-  const decoded = decodeURIComponent(raw);
-  const base = path.basename(decoded);
-  return base.replace(/[^a-zA-Z0-9._\- ]/g, '_');
-};
-
 export const fileService = {
   uploadFile: (stream: Readable, meta: { fileName: string; fileExt: string; size: number }): Promise<FileRecord> => {
     return new Promise((resolve, reject) => {
@@ -91,7 +82,6 @@ export const fileService = {
             const expectedMime = ALLOWED_EXT[fileExt] as string;
 
             if (!detected) {
-              // text/csv/json have no magic bytes — skip content check
               if (!TEXT_EXTS.has(fileExt)) {
                 fail(new Error('File content does not match declared type'), 422);
                 return;

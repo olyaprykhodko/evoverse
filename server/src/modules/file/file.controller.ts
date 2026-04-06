@@ -4,7 +4,8 @@ import path from 'node:path';
 import { Request, Response, NextFunction } from 'express';
 
 import { ALLOWED_EXT } from '#src/storage.js';
-import { fileService, normalizeFileName } from './file.service.js';
+import { fileService } from './file.service.js';
+import { normalizeFileName } from './file.utils.js';
 import { type GetUploadStatusInput, type GetFileInput, type DeleteFileInput } from './file.schema.js';
 
 export const fileController = {
