@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 export type LoadingStatus = 'loading' | 'done' | 'error';
 
 export type FileRecord = {
+  // метадата файлу
   id: string;
   fileName: string;
   mimeType: string;
@@ -15,6 +16,7 @@ export type FileRecord = {
 };
 
 const ALLOWED_EXT: Record<string, string> = {
+  // дозволені розширення файлу
   pdf: 'application/pdf',
   png: 'image/png',
   jpeg: 'image/jpeg',
@@ -29,12 +31,14 @@ const ALLOWED_EXT: Record<string, string> = {
   zip: 'application/zip',
 };
 
-// Extensions that have no magic bytes — file-type returns undefined for them
+// відокремлені текстові формати із списку дозволених розширень, до яких не застосовуватиметься перевірка по магічних байтах (бібліотека file-type)
 export const TEXT_EXTS = new Set(['txt', 'csv', 'json']);
 
+// ліміт сховища за замовчуванням (3 МБ ) та максимальний (1 ГБ)
 let storageLimit = 3 * 1024 * 1024;
-const MAX_STORAGE_LIMIT = 1024 * 1024 * 1024; // 1 GB
+const MAX_STORAGE_LIMIT = 1024 * 1024 * 1024;
 
+// функції сховища викликаються у storage.service
 export const getStorageLimit = (): number => storageLimit;
 
 export const setStorageLimit = (bytes: number): void => {
@@ -61,6 +65,7 @@ const getStorageSize = (): number => {
 
 let reservedBytes = 0;
 
+// наступні дві функції резервують місце у сховищі до початку завантаження файлів, щоби при паралельних запитах не сталось переповнення сховища іншими файлами
 const reserveStorage = (fileSize: number): boolean => {
   if (getStorageSize() + reservedBytes + fileSize > getStorageLimit()) return false;
   reservedBytes += fileSize;
@@ -71,6 +76,7 @@ const clearReserve = (fileSize: number): void => {
   reservedBytes -= fileSize;
 };
 
+// додає до назви файлу унікальне число при завантаженні файлів з однаковим імʼям
 const resolveUniqueFileName = (fileName: string): string => {
   const existingNames = new Set([...storage.values()].map((r) => r.fileName));
 
