@@ -11,7 +11,8 @@ import { type GetUploadStatusInput, type GetFileInput, type DeleteFileInput } fr
 export const fileController = {
   uploadFile: (req: Request, res: Response, next: NextFunction) => {
     const fileName = normalizeFileName(req.headers['x-file-name']);
-    const fileSize = req.headers['content-length'];
+    const rawSize = req.headers['x-file-size'] ?? req.headers['content-length'];
+    const fileSize = Array.isArray(rawSize) ? rawSize[0] : rawSize;
 
     if (!fileName) {
       res.status(400).json({ message: 'Invalid file name' });

@@ -66,5 +66,6 @@ export default function handleUploadFile(
   xhr.open('POST', `${api}/files`);
   xhr.setRequestHeader('Content-Type', file.type);
   xhr.setRequestHeader('X-File-Name', encodeURIComponent(file.name));
+  xhr.setRequestHeader('X-File-Size', file.size.toString());
   xhr.send(file);
 }
