@@ -17,9 +17,6 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"src/**/*.{js,ts,json}\"",
     "format:check": "prettier --check \"src/**/*.{js,ts,json}\"",
-    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
-    "test:cov": "node --experimental-vm-modules node_modules/jest/bin/jest.js --coverage",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -31,7 +28,8 @@
     "hpp": "^0.2.3",
     "morgan": "^1.10.1",
     "winston": "^3.18.3",
-    "zod": "^4.1.12"
+    "zod": "^4.1.12",
+    "file-type": "^22.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.38.0",

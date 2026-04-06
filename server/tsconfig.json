@@ -10,11 +10,10 @@
     "target": "ES6",
 
     /* Path Aliases */
-    "baseUrl": ".",
     "paths": {
       "#src/*": ["./src/*"]
     },
-    
+
     /* Emit */
     "outDir": "./dist",
     "rootDir": ".",

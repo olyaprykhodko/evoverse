@@ -2,7 +2,7 @@ node_modules/
 coverage/
 dist/
 build/
-src/files
+# src/files
 
 .env
 .env.local
