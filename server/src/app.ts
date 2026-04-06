@@ -34,7 +34,7 @@ export const createApp = (): Express => {
 
   app.use(storageRoutes);
 
-  app.use('/api', healthcheckRoutes);
+  app.use(healthcheckRoutes);
 
   app.use((_req, _res, next) => {
     next(new AppError('Route not found', 404));
