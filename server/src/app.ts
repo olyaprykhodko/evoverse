@@ -14,7 +14,6 @@ import storageRoutes from '#src/modules/storage/storage.route.js';
 export const createApp = (): Express => {
   const app = express();
 
-  app.use(helmet());
   app.use(hpp());
 
   app.use(
@@ -23,6 +22,7 @@ export const createApp = (): Express => {
       credentials: true,
     }),
   );
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
   app.use(morganMiddleware);
 
