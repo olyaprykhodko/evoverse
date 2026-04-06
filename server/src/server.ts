@@ -1,8 +1,12 @@
+import fs from 'node:fs';
+
 import { createApp } from './app.js';
 import { ENV } from '#src/config/env.js';
 import { logger } from '#src/middlewares/logger.js';
+import { FILES_DIR } from './storage.js';
 
 const startServer = () => {
+  fs.mkdirSync(FILES_DIR, { recursive: true });
   const app = createApp();
 
   const server = app.listen(ENV.PORT, () => {
