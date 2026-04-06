@@ -1,5 +1,4 @@
-ARG NODE_VERSION=24-bookworm-slim
-FROM node:${NODE_VERSION} AS builder
+FROM node:25-alpine AS builder
 
 WORKDIR /app
 
@@ -11,15 +10,11 @@ COPY . .
 
 RUN npm run build
 
-FROM node:${NODE_VERSION}
+FROM node:25-alpine
 
 WORKDIR /app
 
 ENV NODE_ENV=production
-
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends curl && \
-    rm -rf /var/lib/apt/lists/*
 
 RUN adduser --system --disabled-password appuser
 
