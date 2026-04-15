@@ -20,8 +20,14 @@ import { translateMessage } from './utils/translateMessage';
 const api = process.env.REACT_APP_API_URL || 'http://localhost:3500';
 
 export default function App() {
-  const [auth, setAuth] = useState<Auth | null>(null);
-  const [user, setUser] = useState<SafeUser | null>(null);
+  const [auth, setAuth] = useState<Auth | null>(() => {
+    const saved = localStorage.getItem('auth');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [user, setUser] = useState<SafeUser | null>(() => {
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
+  });
   const [files, setFiles] = useState<AppFile[]>([]);
   const [storageInfo, setStorageInfo] = useState<StorageInfo | null>(null);
   const [uploading, setUploading] = useState<boolean>(false);
@@ -73,6 +79,8 @@ export default function App() {
     if (pollRef.current) clearInterval(pollRef.current);
     setAuth(null);
     setUser(null);
+    localStorage.removeItem('auth');
+    localStorage.removeItem('user');
     setFiles([]);
     setStorageInfo(null);
     setUploadingFileId(null);
@@ -87,6 +95,8 @@ export default function App() {
         onAuth={(a, u) => {
           setAuth(a);
           setUser(u);
+          localStorage.setItem('auth', JSON.stringify(a));
+          localStorage.setItem('user', JSON.stringify(u));
         }}
       />
     );
