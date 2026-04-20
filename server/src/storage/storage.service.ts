@@ -2,23 +2,7 @@ import { Injectable } from '@nestjs/common';
 import fs from 'node:fs';
 import path from 'node:path';
 
-export interface UserRecord {
-  id: string;
-  name: string;
-  email: string;
-  passwordHash: string;
-  storageLimitBytes: number;
-  createdAt: string;
-}
-
-export interface FileRecord {
-  id: string;
-  originalName: string;
-  storedName: string;
-  size: number;
-  mimeType: string;
-  uploadedAt: string;
-}
+import type { UserRecord, FileRecord } from '../common/types';
 
 @Injectable()
 export class StorageService {

@@ -21,7 +21,7 @@ import { FilesService } from './files.service';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { AuthUser } from '../common/decorators/auth-user.decorator';
 import { UsersService } from '../users/users.service';
-import type { UserRecord } from '../storage/storage.service';
+import type { UserRecord } from '../common/types';
 
 @Controller('files')
 export class FilesController {

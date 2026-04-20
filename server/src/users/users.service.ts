@@ -6,7 +6,8 @@ import {
 } from '@nestjs/common';
 import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
-import { StorageService, UserRecord } from '../storage/storage.service';
+import { StorageService } from '../storage/storage.service';
+import type { UserRecord } from '../common/types';
 import { SignupDto } from './dto/signup.dto';
 
 const DEFAULT_STORAGE_LIMIT_MB = 100;

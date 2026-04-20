@@ -12,7 +12,7 @@ import { UsersService } from './users.service';
 import { SignupDto } from './dto/signup.dto';
 import { AuthGuard } from '../common/guards/auth.guard';
 import { AuthUser } from '../common/decorators/auth-user.decorator';
-import type { UserRecord } from '../storage/storage.service';
+import type { UserRecord } from '../common/types';
 
 @Controller('users')
 export class UsersController {

@@ -7,11 +7,8 @@ import {
 import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
-import {
-  StorageService,
-  FileRecord,
-  UserRecord,
-} from '../storage/storage.service';
+import { StorageService } from '../storage/storage.service';
+import type { UserRecord, FileRecord } from '../common/types';
 
 export interface UploadStatus {
   id: string;
