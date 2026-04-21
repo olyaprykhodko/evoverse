@@ -1,9 +1,13 @@
+export type UserRole = 'user' | 'admin';
+
 export interface UserRecord {
   id: string;
   name: string;
   email: string;
   passwordHash: string;
   storageLimitBytes: number;
+  role: UserRole;
+  blocked: boolean;
   createdAt: string;
 }
 
