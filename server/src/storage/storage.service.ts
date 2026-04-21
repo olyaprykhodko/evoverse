@@ -17,9 +17,18 @@ export class StorageService {
     }
   }
 
+  // додано зворотню сумісність із сховщием акаунтів без ролі. якщо немає, додається за замовчуванням role: user та blocked: false
   readUsers(): UserRecord[] {
     const users = fs.readFileSync(this.usersFile, 'utf-8');
-    return JSON.parse(users);
+    try {
+      return (JSON.parse(users) as UserRecord[]).map((u) => ({
+        ...u,
+        role: u.role ?? 'user',
+        blocked: u.blocked ?? false,
+      }));
+    } catch {
+      return [];
+    }
   }
 
   writeUsers(users: UserRecord[]): void {
@@ -47,7 +56,11 @@ export class StorageService {
     const p = this.metadataPath(userId);
     if (!fs.existsSync(p)) return [];
     const raw = fs.readFileSync(p, 'utf-8');
-    return JSON.parse(raw);
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return [];
+    }
   }
 
   writeMetadata(userId: string, records: FileRecord[]): void {
