@@ -6,8 +6,6 @@ import {
 } from '@nestjs/common';
 import { UsersService } from '../../users/users.service';
 
-// перевірка аутентифікації юзера перед контроллером
-
 @Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private readonly usersService: UsersService) {}
