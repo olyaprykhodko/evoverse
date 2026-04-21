@@ -15,6 +15,6 @@ async function bootstrap() {
       transformOptions: { enableImplicitConversion: true },
     }),
   );
-  await app.listen(process.env.PORT ?? 3500);
+  await app.listen(process.env.PORT ?? 3100);
 }
 bootstrap();
