@@ -3,12 +3,14 @@ import {
   ConflictException,
   NotFoundException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import crypto from 'node:crypto';
 import bcrypt from 'bcrypt';
 import { StorageService } from '../storage/storage.service';
 import type { UserRecord } from '../common/types';
 import { SignupDto } from './dto/signup.dto';
+import { UpdateUserDto } from './dto/update.dto';
 
 const DEFAULT_STORAGE_LIMIT_MB = 100;
 
@@ -32,6 +34,8 @@ export class UsersService {
       email: userData.email,
       passwordHash,
       storageLimitBytes: limit * 1024 * 1024,
+      role: 'user',
+      blocked: false,
       createdAt: new Date().toISOString(),
     };
 
@@ -63,6 +67,67 @@ export class UsersService {
     users.splice(idx, 1);
     this.storage.writeUsers(users);
     this.storage.removeUserDir(id);
+  }
+
+  toggleBlock(id: string): Partial<UserRecord> {
+    const users = this.storage.readUsers();
+    const user = users.find((u) => u.id === id);
+    if (!user) throw new NotFoundException('User not found');
+    if (user.role === 'admin') {
+      throw new BadRequestException('Action is not allowed');
+    }
+
+    user.blocked = !user.blocked;
+    this.storage.writeUsers(users);
+
+    const { passwordHash: _, ...rest } = user;
+    return rest;
+  }
+
+  updateStorageLimit(id: string, limitMb: number): Partial<UserRecord> {
+    const users = this.storage.readUsers();
+    const user = users.find((u) => u.id === id);
+    if (!user) throw new NotFoundException('User not found');
+
+    user.storageLimitBytes = limitMb * 1024 * 1024;
+    this.storage.writeUsers(users);
+
+    const { passwordHash: _, ...rest } = user;
+    return rest;
+  }
+
+  getUserFiles(userId: string) {
+    return this.storage.readMetadata(userId);
+  }
+
+  async updateProfile(
+    id: string,
+    data: UpdateUserDto,
+  ): Promise<Partial<UserRecord>> {
+    const users = this.storage.readUsers();
+    const user = users.find((u) => u.id === id);
+    if (!user) throw new NotFoundException('User not found');
+
+    if (data.name !== undefined) {
+      user.name = data.name.trim();
+    }
+
+    if (data.newPassword !== undefined) {
+      if (!data.currentPassword) {
+        throw new BadRequestException('Current password is required');
+      }
+      const valid = await bcrypt.compare(
+        data.currentPassword,
+        user.passwordHash,
+      );
+      if (!valid)
+        throw new BadRequestException('Current password is incorrect');
+      user.passwordHash = await bcrypt.hash(data.newPassword, 10);
+    }
+
+    this.storage.writeUsers(users);
+    const { passwordHash: _, ...rest } = user;
+    return rest;
   }
 
   async validateCredentials(
