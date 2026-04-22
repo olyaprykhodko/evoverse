@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "id": "cb446078-5531-4742-af91-cdd5d7faf030",
+    "name": "Admin",
+    "email": "admin@filestorage.com",
+    "passwordHash": "$2b$10$EEPIWlx0kTbN6tZ/4022MOgQF8wApqr9DwpoD4zce9qZdj.mAUlxu",
+    "storageLimitBytes": 104857600,
+    "role": "admin",
+    "blocked": false,
+    "createdAt": "2026-04-20T13:10:25.990Z"
+  },
+  {
+    "id": "348b9356-6900-4dcc-96b8-2e2439689faa",
+    "name": "User",
+    "email": "user@filestorage.com",
+    "passwordHash": "$2b$10$CpH91Rq9afm69jUx7TdWkeSs7Gl6/9B9QWaCrfh6.wviza62/axka",
+    "storageLimitBytes": 104857600,
+    "role": "user",
+    "blocked": false,
+    "createdAt": "2026-04-21T09:22:16.464Z"
+  }
+]
