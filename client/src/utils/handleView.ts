@@ -1,11 +1,10 @@
-import { Auth } from '../api/fetchFiles';
+import { Auth } from '../types/users';
+import { basicAuth } from '../api/basicAuth';
 
 export default async function handleView(api: string, id: string, auth: Auth) {
   try {
     const res = await fetch(`${api}/files/${id}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: auth.email, password: auth.password }),
+      headers: { Authorization: basicAuth(auth) },
     });
     if (!res.ok) throw new Error();
 
@@ -14,7 +13,6 @@ export default async function handleView(api: string, id: string, auth: Auth) {
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
 
-    // For viewable types open in new tab, otherwise trigger download
     const viewable =
       contentType.startsWith('image/') ||
       contentType === 'application/pdf' ||
@@ -34,9 +32,6 @@ export default async function handleView(api: string, id: string, auth: Auth) {
       document.body.removeChild(a);
     }
 
-    // Revoke after a delay to allow the browser to process
     setTimeout(() => URL.revokeObjectURL(url), 30000);
-  } catch {
-    // silent fail — user can see via error state if needed
-  }
+  } catch {}
 }

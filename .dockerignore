@@ -1,0 +1,6 @@
+server/node_modules
+server/dist
+server/data
+client/node_modules
+client/build
+*.tsbuildinfo

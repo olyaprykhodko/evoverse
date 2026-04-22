@@ -30,6 +30,10 @@ const translations: Record<string, string> = {
   'User not found': 'Користувача не знайдено',
   'You can only delete your own account':
     'Ви можете видалити тільки свій акаунт',
+  'Account is blocked': 'Акаунт заблоковано',
+  'Admin access required': 'Потрібен доступ адміністратора',
+  'Cannot block an admin': 'Неможливо заблокувати адміністратора',
+  'Cannot delete yourself': 'Неможливо видалити себе',
 };
 
 export function translateMessage(msg: string | undefined | null): string {
