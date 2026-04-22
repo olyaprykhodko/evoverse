@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { registerUser, loginUser, SafeUser } from '../api/userApi';
-import { Auth } from '../api/fetchFiles';
+import { signup, login } from '../api/user-api';
+import { Auth, SafeUser } from '../types/users';
 
 interface AuthFormProps {
   api: string;
@@ -24,7 +24,7 @@ export default function AuthForm({ api, onAuth }: AuthFormProps) {
     const auth: Auth = { email, password };
 
     if (mode === 'register') {
-      const { user, error: err } = await registerUser(api, {
+      const { user, error: err } = await signup(api, {
         name,
         email,
         password,
@@ -37,7 +37,7 @@ export default function AuthForm({ api, onAuth }: AuthFormProps) {
       }
       onAuth(auth, user!);
     } else {
-      const { user, error: err } = await loginUser(api, auth);
+      const { user, error: err } = await login(api, auth);
       if (err) {
         setError(err);
         setLoading(false);
