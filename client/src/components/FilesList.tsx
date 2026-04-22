@@ -1,4 +1,5 @@
-import { AppFile, StorageInfo, Auth } from '../api/fetchFiles';
+import { AppFile, StorageInfo } from '../types/files';
+import { Auth } from '../types/users';
 
 interface FilesListProps {
   files: AppFile[];
