@@ -1,5 +1,6 @@
 import {
   Controller,
+  Get,
   Post,
   Delete,
   Body,
@@ -9,7 +10,6 @@ import {
   UseInterceptors,
   UploadedFile,
   Res,
-  HttpCode,
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
@@ -19,6 +19,7 @@ import fs from 'node:fs';
 import { diskStorage } from 'multer';
 import { FilesService } from './files.service';
 import { AuthGuard } from '../common/guards/auth.guard';
+import { BlockedGuard } from '../common/guards/blocked.guard';
 import { AuthUser } from '../common/decorators/auth-user.decorator';
 import { UsersService } from '../users/users.service';
 import type { UserRecord } from '../common/types';
@@ -31,8 +32,7 @@ export class FilesController {
   ) {}
 
   @Post('preflight')
-  @HttpCode(200)
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, BlockedGuard)
   preflight(
     @Body() body: { fileName: string; fileSize: number },
     @AuthUser() user: UserRecord,
@@ -44,7 +44,7 @@ export class FilesController {
     return { status: 'success', message: 'Upload allowed' };
   }
 
-  @Post('upload')
+  @Post()
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
@@ -58,12 +58,27 @@ export class FilesController {
     }),
   )
   async upload(@UploadedFile() file: Express.Multer.File, @Req() req: Request) {
-    const { email, password } = req.body ?? {};
-    if (!email || !password) {
+    const header: string | undefined = req.headers['authorization'];
+    if (!header?.startsWith('Basic ')) {
       if (file?.path) this.cleanupTemp(file.path);
-      throw new BadRequestException('email and password fields are required');
+      throw new BadRequestException('Authorization header is required');
     }
+
+    const decoded = Buffer.from(header.slice(6), 'base64').toString('utf-8');
+    const colonIndex = decoded.indexOf(':');
+    if (colonIndex === -1) {
+      if (file?.path) this.cleanupTemp(file.path);
+      throw new BadRequestException('Invalid Basic auth format');
+    }
+    const email = decoded.slice(0, colonIndex);
+    const password = decoded.slice(colonIndex + 1);
+
     const user = await this.usersService.validateCredentials(email, password);
+
+    if (user.blocked) {
+      if (file?.path) this.cleanupTemp(file.path);
+      throw new BadRequestException('Account is blocked');
+    }
 
     if (!file) {
       throw new BadRequestException('No file provided');
@@ -72,8 +87,7 @@ export class FilesController {
     return { status: 'success', data: { id: uploadId } };
   }
 
-  @Post('status/:id')
-  @HttpCode(200)
+  @Get('status/:id')
   @UseGuards(AuthGuard)
   getUploadStatus(@Param('id') id: string) {
     const status = this.filesService.getUploadStatus(id);
@@ -81,18 +95,16 @@ export class FilesController {
     return { status: 'success', data: status };
   }
 
-  @Post('list')
-  @HttpCode(200)
-  @UseGuards(AuthGuard)
+  @Get()
+  @UseGuards(AuthGuard, BlockedGuard)
   list(@AuthUser() user: UserRecord) {
     const files = this.filesService.findAll(user.id);
     const storage = this.filesService.getStorageInfo(user);
     return { status: 'success', data: { files, storage } };
   }
 
-  @Post(':id')
-  @HttpCode(200)
-  @UseGuards(AuthGuard)
+  @Get(':id')
+  @UseGuards(AuthGuard, BlockedGuard)
   download(
     @Param('id') id: string,
     @AuthUser() user: UserRecord,
@@ -109,14 +121,14 @@ export class FilesController {
   }
 
   @Delete(':id')
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, BlockedGuard)
   deleteOne(@Param('id') id: string, @AuthUser() user: UserRecord) {
     this.filesService.delete(user.id, id);
     return { status: 'success', message: 'File deleted' };
   }
 
   @Delete()
-  @UseGuards(AuthGuard)
+  @UseGuards(AuthGuard, BlockedGuard)
   clearAll(@AuthUser() user: UserRecord) {
     const result = this.filesService.clearAll(user.id);
     return { status: 'success', ...result };
