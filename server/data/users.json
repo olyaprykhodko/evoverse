@@ -4,7 +4,7 @@
     "name": "Admin",
     "email": "admin@filestorage.com",
     "passwordHash": "$2b$10$EEPIWlx0kTbN6tZ/4022MOgQF8wApqr9DwpoD4zce9qZdj.mAUlxu",
-    "storageLimitBytes": 104857600,
+    "storageLimitBytes": 1073741824,
     "role": "admin",
     "blocked": false,
     "createdAt": "2026-04-20T13:10:25.990Z"
