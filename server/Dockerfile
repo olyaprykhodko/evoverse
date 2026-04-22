@@ -3,11 +3,11 @@ FROM node:25-alpine AS client-builder
 
 WORKDIR /app
 
-COPY ../client/package*.json ./
+COPY client/package*.json ./
 
 RUN npm ci
 
-COPY ../client/ .
+COPY client/ .
 
 ENV REACT_APP_API_URL=''
 
@@ -18,11 +18,11 @@ FROM node:25-alpine AS server-builder
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY server/package*.json ./
 
 RUN npm ci
 
-COPY . .
+COPY server/ .
 
 RUN npm run build
 
@@ -36,7 +36,7 @@ ENV PORT=3100
 
 RUN adduser --system --disabled-password appuser
 
-COPY package*.json ./
+COPY server/package*.json ./
 
 RUN npm ci --omit=dev
 
