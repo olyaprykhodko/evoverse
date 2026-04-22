@@ -13,7 +13,7 @@ export async function signup(
   },
 ): Promise<{ user?: SafeUser; error?: string }> {
   try {
-    const res = await fetch(`${api}/users`, {
+    const res = await fetch(`${api}/auth/signup`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
@@ -32,7 +32,8 @@ export async function login(
   auth: Auth,
 ): Promise<{ user?: SafeUser; error?: string }> {
   try {
-    const res = await fetch(`${api}/users/me`, {
+    const res = await fetch(`${api}/auth/login`, {
+      method: 'POST',
       headers: { Authorization: basicAuth(auth) },
     });
     const json = await res.json();
@@ -92,7 +93,7 @@ export async function adminGetUsers(
   auth: Auth,
 ): Promise<{ users?: AdminUser[]; error?: string }> {
   try {
-    const res = await fetch(`${api}/users/admin/users`, {
+    const res = await fetch(`${api}/admin/users`, {
       headers: { Authorization: basicAuth(auth) },
     });
     const json = await res.json();
@@ -111,7 +112,7 @@ export async function adminUpdateStorageLimit(
   storageLimitMb: number,
 ): Promise<{ user?: SafeUser; error?: string }> {
   try {
-    const res = await fetch(`${api}/users/admin/users/${userId}/storage`, {
+    const res = await fetch(`${api}/admin/users/${userId}/quota`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
@@ -134,7 +135,7 @@ export async function adminToggleBlock(
   userId: string,
 ): Promise<{ user?: SafeUser; error?: string }> {
   try {
-    const res = await fetch(`${api}/users/admin/users/${userId}/block`, {
+    const res = await fetch(`${api}/admin/users/${userId}/block`, {
       method: 'PATCH',
       headers: { Authorization: basicAuth(auth) },
     });
@@ -154,7 +155,7 @@ export async function adminDeleteFile(
   fileId: string,
 ): Promise<{ error?: string }> {
   try {
-    const res = await fetch(`${api}/files/admin/${userId}/${fileId}`, {
+    const res = await fetch(`${api}/admin/users/${userId}/files/${fileId}`, {
       method: 'DELETE',
       headers: { Authorization: basicAuth(auth) },
     });
@@ -175,7 +176,7 @@ export async function adminDeleteUser(
   userId: string,
 ): Promise<{ error?: string }> {
   try {
-    const res = await fetch(`${api}/users/admin/users/${userId}`, {
+    const res = await fetch(`${api}/admin/users/${userId}`, {
       method: 'DELETE',
       headers: { Authorization: basicAuth(auth) },
     });
