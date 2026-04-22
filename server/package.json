@@ -7,6 +7,7 @@
   "license": "UNLICENSED",
   "scripts": {
     "build": "nest build",
+    "build:all": "cd ../client && REACT_APP_API_URL='' npm run build && cd ../server && nest build && rm -rf client/build && mkdir -p client && cp -r ../client/build ./client/build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "start": "nest start",
     "start:dev": "nest start --watch",
@@ -24,6 +25,7 @@
     "@nestjs/core": "^11.0.1",
     "@nestjs/mapped-types": "^2.1.1",
     "@nestjs/platform-express": "^11.0.1",
+    "@nestjs/serve-static": "^5.0.5",
     "bcrypt": "^6.0.0",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
