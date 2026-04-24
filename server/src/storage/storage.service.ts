@@ -19,16 +19,20 @@ export class StorageService {
 
   // додано зворотню сумісність із сховщием акаунтів без ролі. якщо немає, додається за замовчуванням role: user та blocked: false
   readUsers(): UserRecord[] {
-    const users = fs.readFileSync(this.usersFile, 'utf-8');
+    const raw = fs.readFileSync(this.usersFile, 'utf-8');
+
+    let parsed: UserRecord[];
     try {
-      return (JSON.parse(users) as UserRecord[]).map((u) => ({
-        ...u,
-        role: u.role ?? 'user',
-        blocked: u.blocked ?? false,
-      }));
+      parsed = JSON.parse(raw) as UserRecord[];
     } catch {
       return [];
     }
+
+    return parsed.map((u) => ({
+      ...u,
+      role: u.role ?? 'user',
+      blocked: u.blocked ?? false,
+    }));
   }
 
   writeUsers(users: UserRecord[]): void {
