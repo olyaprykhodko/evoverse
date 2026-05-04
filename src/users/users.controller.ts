@@ -8,11 +8,14 @@ import {
   Delete,
   Req,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
+import { JwtAccessGuard } from '../auth/guards/jwt-access.guard.js';
+import type { JwtPayload } from '../auth/strategies/jwt-access.strategy.js';
 
 @Controller('users')
 export class UsersController {
@@ -23,18 +26,18 @@ export class UsersController {
     return this.usersService.create(createUserDto);
   }
 
-  // ADMIN RESOURCE
+  // ADMIN RESOURCE — TODO: add role guard
+  @UseGuards(JwtAccessGuard)
   @Get()
   findAll() {
     return this.usersService.findAll();
   }
 
-  // TODO: protect with AuthGuard — req.user is populated from JWT by AuthGuard
+  @UseGuards(JwtAccessGuard)
   @Get('me')
   findMe(@Req() req: Request) {
-    // const userId = (req.user as { id: number })?.id;
-    // return this.usersService.findMe(userId);
-    return;
+    const user = req.user as JwtPayload;
+    return this.usersService.findMe(user.sub);
   }
 
   @Get(':id')
@@ -42,6 +45,7 @@ export class UsersController {
     return this.usersService.findOne(id);
   }
 
+  @UseGuards(JwtAccessGuard)
   @Patch(':id')
   update(
     @Param('id', ParseIntPipe) id: number,
@@ -50,6 +54,7 @@ export class UsersController {
     return this.usersService.update(id, updateUserDto);
   }
 
+  @UseGuards(JwtAccessGuard)
   @Delete(':id')
   remove(@Param('id', ParseIntPipe) id: number) {
     return this.usersService.remove(id);

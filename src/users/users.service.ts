@@ -48,6 +48,7 @@ export class UsersService {
 
     return sendResponse('User successfully created', 201);
   }
+
   // ADMIN ROUTE. TODO: RESTRICT ACCESS
   async findAll() {
     try {
@@ -81,9 +82,43 @@ export class UsersService {
     }
   }
 
-  // TODO: implement after AuthGuard is ready — id comes from JWT payload (req.user)
-  findMe(id: number) {
-    return;
+  async findMe(id: number) {
+    const user = await this.prisma.users.findFirst({
+      where: { id, isDeleted: false },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        role: true,
+        isBanned: true,
+        banEndAt: true,
+        createdAt: true,
+        profile: {
+          select: {
+            rating: true,
+            balance: true,
+            avatar: true,
+            level: true,
+            address: {
+              select: {
+                firstName: true,
+                lastName: true,
+                phoneNumber: true,
+                address: true,
+                address2: true,
+                country: true,
+                city: true,
+                postalCode: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    return sendResponse('User profile fetched', 200, user);
   }
 
   // TODO: implement after ADRESS resource created
