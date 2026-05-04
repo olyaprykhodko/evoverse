@@ -26,13 +26,6 @@ export class UsersController {
     return this.usersService.create(createUserDto);
   }
 
-  // ADMIN RESOURCE — TODO: add role guard
-  @UseGuards(JwtAccessGuard)
-  @Get()
-  findAll() {
-    return this.usersService.findAll();
-  }
-
   @UseGuards(JwtAccessGuard)
   @Get('me')
   findMe(@Req() req: Request) {
