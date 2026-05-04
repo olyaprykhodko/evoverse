@@ -5,6 +5,9 @@
   "author": "",
   "private": true,
   "license": "UNLICENSED",
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
   "type": "module",
   "scripts": {
     "build": "nest build",
