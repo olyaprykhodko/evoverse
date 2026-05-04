@@ -121,9 +121,29 @@ export class UsersService {
     return sendResponse('User profile fetched', 200, user);
   }
 
-  // TODO: implement after ADRESS resource created
-  findOne(id: number) {
-    return `This action returns a #${id} user`;
+  async findOne(id: number) {
+    const user = await this.prisma.users.findFirst({
+      where: { id, isDeleted: false },
+      select: {
+        username: true,
+        profile: {
+          select: {
+            rating: true,
+            level: true,
+            createdAt: true,
+            address: {
+              select: {
+                country: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!user) throw new NotFoundException('User not found');
+
+    return sendResponse('User fetched', 200, user);
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
