@@ -80,3 +80,28 @@ profile Profiles @relation(fields: [userId], references: [userId], map: "address
 
 @@map("address")
 }
+
+model GameSession {
+id String @id @default(uuid())
+userId Int
+serverSeed String
+serverHash String
+clientSeed String
+nonce Int @default(0)
+createdAt DateTime @default(now())
+bets RouletteBet[]
+}
+
+model RouletteBet  {
+id String @id @default(uuid())
+gameId String
+betType String
+betAmount Int 
+winningNumber Int
+payoutAmount Int 
+isWin Boolean
+nonce Int
+createdAt DateTime @default(now())
+gameSession GameSession @relation(fields: [gameId], references: [id])
+}
+
