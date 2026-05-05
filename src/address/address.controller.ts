@@ -1,30 +1,25 @@
-import { Controller, Post, Body, Patch, Param } from '@nestjs/common';
+import { Controller, Post, Body, Patch, Req, UseGuards } from '@nestjs/common';
+import type { Request } from 'express';
 import { AddressService } from './address.service.js';
 import { CreateAddressDto } from './dto/create-address.dto.js';
 import { UpdateAddressDto } from './dto/update-address.dto.js';
-import { UseGuards } from '@nestjs/common';
 import { JwtAccessGuard } from '../auth/guards/jwt-access.guard.js';
-import { ParseIntPipe } from '@nestjs/common';
+import type { JwtPayload } from '../auth/strategies/jwt-access.strategy.js';
 
 @Controller('address')
+@UseGuards(JwtAccessGuard)
 export class AddressController {
   constructor(private readonly addressService: AddressService) {}
 
-  @UseGuards(JwtAccessGuard)
-  @Post(':userId')
-  create(
-    @Param('id', ParseIntPipe) userId: number,
-    @Body() createAddressDto: CreateAddressDto,
-  ) {
-    return this.addressService.create(userId, createAddressDto);
+  @Post()
+  create(@Req() req: Request, @Body() createAddressDto: CreateAddressDto) {
+    const user = req.user as JwtPayload;
+    return this.addressService.create(user.sub, createAddressDto);
   }
 
-  @UseGuards(JwtAccessGuard)
-  @Patch(':userId')
-  update(
-    @Param('id', ParseIntPipe) userId: number,
-    @Body() updateAddressDto: UpdateAddressDto,
-  ) {
-    return this.addressService.update(userId, updateAddressDto);
+  @Patch()
+  update(@Req() req: Request, @Body() updateAddressDto: UpdateAddressDto) {
+    const user = req.user as JwtPayload;
+    return this.addressService.update(user.sub, updateAddressDto);
   }
 }
