@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  GoneException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -47,39 +48,6 @@ export class UsersService {
     }
 
     return sendResponse('User successfully created', 201);
-  }
-
-  // ADMIN ROUTE. TODO: RESTRICT ACCESS
-  async findAll() {
-    try {
-      const users = await this.prisma.users.findMany({
-        select: {
-          id: true,
-          username: true,
-          email: true,
-          isBanned: true,
-          isDeleted: true,
-          banEndAt: true,
-          role: true,
-          lastLoginIP: true,
-          lastLoginAt: true,
-          createdAt: true,
-          updatedAt: true,
-          deletedAt: true,
-          profile: {
-            select: {
-              rating: true,
-              avatar: true,
-            },
-          },
-        },
-      });
-
-      return sendResponse('Users data fetched', 200, users);
-    } catch (err) {
-      this.logger.error('Failed to fetch users', err);
-      throw new InternalServerErrorException();
-    }
   }
 
   async findMe(id: number) {
@@ -151,9 +119,11 @@ export class UsersService {
 
     const userExists = await this.prisma.users.findFirst({
       where: { id },
-      select: { id: true },
+      select: { id: true, isDeleted: true },
     });
     if (!userExists) throw new NotFoundException('User not found');
+    if (userExists.isDeleted)
+      throw new GoneException('User account has been deleted');
 
     if (email) {
       const emailExists = await this.prisma.users.findFirst({
@@ -185,9 +155,11 @@ export class UsersService {
   async remove(id: number) {
     const userExists = await this.prisma.users.findFirst({
       where: { id },
-      select: { id: true },
+      select: { id: true, isDeleted: true },
     });
     if (!userExists) throw new NotFoundException('User not found');
+    if (userExists.isDeleted)
+      throw new GoneException('User account is already deleted');
 
     try {
       await this.prisma.users.update({
