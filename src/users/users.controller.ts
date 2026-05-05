@@ -33,8 +33,8 @@ import {
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
-  @ApiOperation({ summary: 'Register a new user' })
-  @ApiCreatedResponse({ description: 'Created – user successfully registered' })
+  @ApiOperation({ summary: 'Create new user' })
+  @ApiCreatedResponse({ description: 'Created – user successfully created' })
   @ApiConflictResponse({ description: 'Conflict – email already exists' })
   @Post()
   create(@Body() createUserDto: CreateUserDto) {
@@ -42,8 +42,8 @@ export class UsersController {
   }
 
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Get own full profile' })
-  @ApiOkResponse({ description: 'OK – profile with balance, address' })
+  @ApiOperation({ summary: 'Get full profile' })
+  @ApiOkResponse({ description: 'OK – full profile' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Not Found – user deleted or not found' })
   @UseGuards(JwtAccessGuard)
@@ -54,7 +54,7 @@ export class UsersController {
   }
 
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Get public profile by user ID' })
+  @ApiOperation({ summary: 'Get public profile' })
   @ApiOkResponse({ description: 'OK – username, rating, level, country' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Not Found – user deleted or not found' })
@@ -65,7 +65,7 @@ export class UsersController {
   }
 
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Update own account (username / email / password)' })
+  @ApiOperation({ summary: 'Update account (username / email / password)' })
   @ApiOkResponse({ description: 'OK – user updated' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Not Found' })
@@ -81,7 +81,7 @@ export class UsersController {
   }
 
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Soft-delete own account' })
+  @ApiOperation({ summary: 'Unactivate account' })
   @ApiOkResponse({ description: 'OK – account archived' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @ApiNotFoundResponse({ description: 'Not Found' })
