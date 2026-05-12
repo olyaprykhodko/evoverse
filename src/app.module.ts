@@ -6,6 +6,7 @@ import { AuthModule } from './auth/auth.module.js';
 import { AddressModule } from './address/address.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { RouletteModule } from './roulette/roulette.module.js';
+import { WalletModule } from './wallet/wallet.module.js';
 
 @Module({
   imports: [
@@ -15,6 +16,7 @@ import { RouletteModule } from './roulette/roulette.module.js';
     AddressModule,
     AdminModule,
     RouletteModule,
+    WalletModule,
   ],
   controllers: [AppController],
   providers: [],
