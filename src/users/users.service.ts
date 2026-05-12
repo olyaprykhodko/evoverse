@@ -40,6 +40,9 @@ export class UsersService {
           profile: {
             create: { rating: 0 },
           },
+          wallet: {
+            create: {},
+          },
         },
       });
     } catch (err) {
