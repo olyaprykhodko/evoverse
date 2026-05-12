@@ -17,12 +17,18 @@ import {
   RED_NUMBERS,
 } from './entities/bet-types.js';
 import * as crypto from 'node:crypto';
+import { WalletService } from '../wallet/wallet.service.js';
+import { Prisma } from '../../generated/prisma/client.js';
+import { TransactionType } from '../../generated/prisma/enums.js';
 
 @Injectable()
 export class RouletteService {
   private readonly logger = new Logger(RouletteService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly walletService: WalletService,
+  ) {}
 
   async createSession(userId: number, dto: CreateSessionDto) {
     const serverSeed = crypto.randomBytes(32).toString('hex');
@@ -57,31 +63,30 @@ export class RouletteService {
   async placeBet(userId: number, dto: PlaceBetDto) {
     const { sessionId, type, targetNumber, amount, clientSeed } = dto;
 
-    // Load session and profile in parallel
-    const [session, profile] = await Promise.all([
-      this.prisma.gameSession.findFirst({
-        where: { id: sessionId },
-        select: {
-          id: true,
-          userId: true,
-          serverSeed: true,
-          nonce: true,
-          isOpen: true,
-        },
-      }),
-      this.prisma.profiles.findFirst({
-        where: { userId },
-        select: { balance: true },
-      }),
-    ]);
+    const session = await this.prisma.gameSession.findFirst({
+      where: { id: sessionId },
+      select: {
+        id: true,
+        userId: true,
+        serverSeed: true,
+        nonce: true,
+        isOpen: true,
+      },
+    });
+
+    const userWallet = await this.prisma.wallet.findUnique({
+      where: { userId },
+      select: { id: true, balance: true },
+    });
 
     if (!session) throw new NotFoundException('Session not found');
     if (!session.isOpen)
       throw new BadRequestException('Session is already closed');
     if (session.userId !== userId)
       throw new ForbiddenException('Access to session denied');
-    if (!profile) throw new NotFoundException('Profile not found');
-    if (profile.balance.lessThan(amount))
+    if (!userWallet) throw new NotFoundException('Wallet not found');
+
+    if (userWallet.balance.lessThan(amount))
       throw new BadRequestException('Insufficient balance');
 
     const result = this.calculateResult(
@@ -93,11 +98,31 @@ export class RouletteService {
     const isWin = this.checkWin(type, result, targetNumber);
     const payoutAmount = isWin ? amount * PAYOUT_MULTIPLIERS[type] : 0;
 
-    const balanceDelta = payoutAmount - amount;
-
     try {
-      const [bet] = await this.prisma.$transaction([
-        this.prisma.rouletteBet.create({
+      const bet = await this.prisma.$transaction(async (tx) => {
+        await this.walletService.processTransaction(
+          tx,
+          userWallet.id,
+          TransactionType.WITHDRAWAL,
+          new Prisma.Decimal(amount),
+          `bet:${sessionId}:${session.nonce}`,
+          sessionId,
+          'Roulette bet',
+        );
+
+        if (isWin && payoutAmount > 0) {
+          await this.walletService.processTransaction(
+            tx,
+            userWallet.id,
+            TransactionType.PAYOUT,
+            new Prisma.Decimal(payoutAmount),
+            `payout:${sessionId}:${session.nonce}`,
+            sessionId,
+            'Roulette payout',
+          );
+        }
+
+        const betRecord = await tx.rouletteBet.create({
           data: {
             userId,
             gameId: sessionId,
@@ -118,22 +143,34 @@ export class RouletteService {
             isWin: true,
             nonce: true,
           },
-        }),
-        this.prisma.gameSession.update({
+        });
+
+        await tx.gameSession.update({
           where: { id: sessionId },
           data: { nonce: { increment: 1 }, clientSeed },
-        }),
-        this.prisma.profiles.update({
-          where: { userId },
-          data: {
-            balance: { increment: balanceDelta },
-            ...(isWin && { rating: { increment: 1 } }),
-          },
-        }),
-      ]);
+        });
+
+        if (isWin) {
+          await tx.profiles.update({
+            where: { userId },
+            data: { rating: { increment: 1 } },
+          });
+        }
+
+        return betRecord;
+      });
 
       return sendResponse('Bet placed', 200, bet);
     } catch (err) {
+      // Re-throw domain exceptions (BadRequestException from processTransaction etc.)
+      if (
+        err instanceof BadRequestException ||
+        err instanceof NotFoundException ||
+        err instanceof ForbiddenException
+      ) {
+        throw err;
+      }
+
       this.logger.error('Failed to place bet', err);
       throw new InternalServerErrorException();
     }
