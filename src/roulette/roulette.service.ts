@@ -162,7 +162,6 @@ export class RouletteService {
 
       return sendResponse('Bet placed', 200, bet);
     } catch (err) {
-      // Re-throw domain exceptions (BadRequestException from processTransaction etc.)
       if (
         err instanceof BadRequestException ||
         err instanceof NotFoundException ||
