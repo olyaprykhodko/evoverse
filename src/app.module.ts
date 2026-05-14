@@ -7,7 +7,6 @@ import { AddressModule } from './address/address.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { RouletteModule } from './roulette/roulette.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
-import { StripeModule } from './payments/stripe/stripe.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 
 @Module({
@@ -19,7 +18,6 @@ import { PaymentsModule } from './payments/payments.module.js';
     AdminModule,
     RouletteModule,
     WalletModule,
-    StripeModule,
     PaymentsModule,
   ],
   controllers: [AppController],

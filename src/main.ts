@@ -8,7 +8,7 @@ import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
 
-  app.use('/stripe/webhook', raw({ type: 'application/json' }));
+  app.use('/payments/webhook/stripe', raw({ type: 'application/json' }));
 
   app.use(json());
 
