@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.4](https://github.com/olyaprykhodko/evoverse/compare/v0.0.3...v0.0.4) (2026-05-14)
+
+
+### Features
+
+* add STRIPE_CLIENT constant for Stripe integration ([3fc2bf5](https://github.com/olyaprykhodko/evoverse/commit/3fc2bf5b56c6af06e7e871f9d72ff01ea6d92ee2))
+* fix typo in ESLint rule and add PaymentDto class for payment validation ([d8e4251](https://github.com/olyaprykhodko/evoverse/commit/d8e4251d4b4161ee3ef830836f347260dda511e9))
+* implement Stripe webhook handling in PaymentsController and update PaymentsService for payment confirmation ([7b4c2d6](https://github.com/olyaprykhodko/evoverse/commit/7b4c2d64256f2ef1f7f45452f1191c5813240821))
+* update bet placement logic to return detailed response and adjust user balance ([9c94477](https://github.com/olyaprykhodko/evoverse/commit/9c9447777687802ead20dbe1bf65879906099fc4))
+* update payment intent creation to handle currency and amount adjustments in StripeService ([b9c5bc6](https://github.com/olyaprykhodko/evoverse/commit/b9c5bc6fe8e88cad93df8ced6fd234ec74315202))
+
 ### [0.0.3](https://github.com/olyaprykhodko/evoverse/compare/v0.0.2...v0.0.3) (2026-05-14)
 
 
