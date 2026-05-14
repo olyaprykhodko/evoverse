@@ -295,6 +295,12 @@ STRIPE_WEBHOOK_SECRET=whsec_...
 git clone https://github.com/olyaprykhodko/evoverse
 cd evoverse && git checkout game-evoverse
 npm i
+cp .env.example .env
+```
+
+> У файлі `.env` треба замінити всі плейсхолдери (`your_db_password`, `sk_test_...` тощо) реальними значеннями перед запуском.
+
+```bash
 
 # Запустити PostgreSQL (через Docker або локально)
 docker compose up postgres -d
