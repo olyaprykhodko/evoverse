@@ -6,6 +6,11 @@ COPY package*.json ./
 
 RUN npm ci
 
+COPY prisma ./prisma
+COPY prisma.config.ts ./prisma.config.ts
+
+RUN npx prisma generate --schema ./prisma/schema.prisma
+
 COPY . .
 RUN npm run build
 
