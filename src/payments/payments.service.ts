@@ -1,26 +1,23 @@
-import { Injectable } from '@nestjs/common';
-import { CreatePaymentDto } from './dto/create-payment.dto';
-import { UpdatePaymentDto } from './dto/update-payment.dto';
+import { Injectable, Logger } from '@nestjs/common';
+import { WalletService } from '../wallet/wallet.service.js';
+import type { PaymentConfirmedEvent } from './stripe/stripe.service.js';
 
 @Injectable()
 export class PaymentsService {
-  create(createPaymentDto: CreatePaymentDto) {
-    return 'This action adds a new payment';
-  }
+  private readonly logger = new Logger(PaymentsService.name);
 
-  findAll() {
-    return `This action returns all payments`;
-  }
+  constructor(private readonly walletService: WalletService) {}
 
-  findOne(id: number) {
-    return `This action returns a #${id} payment`;
-  }
+  async handlePaymentConfirmed(event: PaymentConfirmedEvent): Promise<void> {
+    this.logger.log(
+      `Payment confirmed: provider=${event.provider} paymentId=${event.paymentId} ` +
+        `userId=${event.userId} amount=${event.amount}`,
+    );
 
-  update(id: number, updatePaymentDto: UpdatePaymentDto) {
-    return `This action updates a #${id} payment`;
-  }
-
-  remove(id: number) {
-    return `This action removes a #${id} payment`;
+    await this.walletService.deposit(event.userId, {
+      amount: event.amount,
+      idempotencyKey: event.paymentId,
+      description: event.description,
+    });
   }
 }
