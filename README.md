@@ -1,6 +1,6 @@
 # Evoverse — Game Backend API
 
-REST API для онлайн-казино гри з реєстрацією, JWT-авторизацією, рулеткою з алгоритмом Provably Fair та адміністративною панеллю.
+REST API для онлайн-казино гри з реєстрацією, JWT-авторизацією, рулеткою з алгоритмом Provably Fair, гаманцем, інтеграцією Stripe та адміністративною панеллю.
 
 Для тестування при першому запуску створіть адмін-акаунт через seed:
 
@@ -19,6 +19,7 @@ API документація: http://localhost:3300/
 - **Database:** PostgreSQL 17 + Prisma 7
 - **Auth:** JWT via `@nestjs/jwt` + `passport-jwt`
 - **Password hashing:** argon2
+- **Payments:** Stripe (`stripe@22`, API version `2026-04-22.dahlia`)
 - **Docs:** Swagger
 - **Container:** Docker (multi-stage build) + Docker Compose
 
@@ -31,12 +32,22 @@ API документація: http://localhost:3300/
 - Деактивація акаунту
 - Адреса користувача: створення та оновлення
 - Адмін-панель: перегляд, бан, розбан, зміна ролі, видалення, статистика платформи
+- Гаманець:
+  - Автоматичне створення wallet при реєстрації
+  - Ручне поповнення балансу з idempotency key (безпечний ретрай)
+  - Повна незмінна історія транзакцій (ledger)
+  - Захист від race condition через `SELECT FOR UPDATE`
 - Рулетка:
   - Створення ігрової сесії з serverHash
   - Ставки: STRAIGHT, RED, BLACK, EVEN, ODD, DOZEN
-  - Баланс та рейтинг оновлюються в одній транзакції зі ставкою
+  - Списання та нарахування через wallet в одній транзакції
   - Вихід із сесії розкриває serverSeed
   - Публічна верифікація результату без БД
+- Платежі (Stripe):
+  - Поповнення гаманця через Stripe Payment Element
+  - Створення PaymentIntent (`POST /stripe/deposit`)
+  - Webhook-обробник (`POST /payments/webhook/stripe`): верифікація підпису і нарахування балансу на гаманець
+  - Безпечний raw body parsing для підпису, JSON body для решти маршрутів
 
 ---
 
@@ -98,16 +109,34 @@ src/
 │   ├── admin.controller.ts              # GET|PATCH|DELETE /admin/...
 │   ├── admin.service.ts
 │   └── admin.module.ts
-└── roulette/
+├── roulette/
+│   ├── dto/
+│   │   ├── create-session.dto.ts
+│   │   ├── place-bet.dto.ts
+│   │   └── verify-game.dto.ts
+│   ├── entities/
+│   │   └── bet-types.ts                 # BetType enum, PAYOUT_MULTIPLIERS, RED_NUMBERS
+│   ├── roulette.controller.ts           # POST /roulette/join|bet|verify, DELETE /roulette/leave/:id, GET /roulette/history
+│   ├── roulette.service.ts
+│   └── roulette.module.ts
+├── payments/
+│   ├── payments.controller.ts           # POST /payments/webhook/stripe (без JWT, Stripe-signature)
+│   ├── payments.service.ts              # handlePaymentConfirmed → wallet ledger
+│   ├── payments.module.ts
+│   └── stripe/
+│       ├── constants/
+│       │   └── client.ts                # STRIPE_CLIENT injection token
+│       ├── dto/
+│       │   └── payment.dto.ts           # amount (монети)
+│       ├── stripe.controller.ts         # POST /stripe/deposit (JWT guard)
+│       ├── stripe.service.ts            # createPaymentIntent, verifyAndParseWebhook
+│       └── stripe.module.ts
+└── wallet/
     ├── dto/
-    │   ├── create-session.dto.ts
-    │   ├── place-bet.dto.ts
-    │   └── verify-game.dto.ts
-    ├── entities/
-    │   └── bet-types.ts                 # BetType enum, PAYOUT_MULTIPLIERS, RED_NUMBERS
-    ├── roulette.controller.ts           # POST /roulette/join|bet|verify, DELETE /roulette/leave/:id, GET /roulette/history
-    ├── roulette.service.ts
-    └── roulette.module.ts
+    │   └── deposit.dto.ts               # amount, idempotencyKey (UUID v4), description?
+    ├── wallet.controller.ts             # GET /wallet/me|transactions, POST /wallet/deposit
+    ├── wallet.service.ts                # processTransaction із SELECT FOR UPDATE
+    └── wallet.module.ts
 ```
 
 ---
@@ -156,6 +185,55 @@ src/
 | `PATCH`  | `/admin/users/:id/profile` | Admin | Оновити rating / balance / level                    |
 | `DELETE` | `/admin/users/:id`         | Admin | Soft delete акаунту                                 |
 
+### Wallet (`/wallet`)
+
+| Метод  | Маршрут                       | Guard  | Опис                                                                           |
+| ------ | ----------------------------- | ------ | ------------------------------------------------------------------------------ |
+| `GET`  | `/wallet/me`                  | Bearer | Поточний баланс + 10 останніх транзакцій                                       |
+| `POST` | `/wallet/deposit`             | Bearer | Поповнення балансу. Тіло: `amount`, `idempotencyKey` (UUID v4), `description?` |
+| `GET`  | `/wallet/transactions?limit=` | Bearer | Повна історія транзакцій (максимум 100)                                        |
+
+#### Idempotency
+
+Поле `idempotencyKey` — UUID v4, який клієнт генерує **один раз** перед запитом і повторно використовує при будь-якому ретраї. Якщо сервер вже обробив цей ключ — повертає оригінальну транзакцію зі статусом `200` без повторного нарахування.
+
+#### Race condition
+
+Кожна операція з балансом виконується всередині `$transaction` із `SELECT ... FOR UPDATE` на рядку гаманця. Конкурентні запити від одного користувача серіалізуються на рівні PostgreSQL — неможливі ні ситуація "обидва бачать достатній баланс", ні подвійне списання.
+
+---
+
+### Stripe (`/stripe`)
+
+| Метод  | Маршрут           | Guard  | Опис                                                                                                                       |
+| ------ | ----------------- | ------ | -------------------------------------------------------------------------------------------------------------------------- |
+| `POST` | `/stripe/deposit` | Bearer | Створити PaymentIntent. Тіло: `{ "amount": 100 }` (монети). Повертає `id`, `client_secret`, `amount`, `currency`, `status` |
+
+> `amount` передається у монетах (копійках), сервер множить на 100 для Stripe (гроші → найменша одиниця валюти).
+
+### Payments webhook (`/payments`)
+
+| Метод  | Маршрут                    | Guard | Опис                                                           |
+| ------ | -------------------------- | ----- | -------------------------------------------------------------- |
+| `POST` | `/payments/webhook/stripe` | —     | Stripe webhook. Верифікує `stripe-signature`, нараховує баланс |
+
+> Цей маршрут використовує raw body (`Buffer`) для перевірки підпису Stripe. Клієнти не повинні викликати його напряму.
+
+#### Локальне тестування webhook
+
+```bash
+# Встановити Stripe CLI та увійти в акаунт
+stripe login
+
+stripe listen --forward-to localhost:3300/payments/webhook/stripe
+
+# Вручну тригернути payment_intent.succeeded (з userId в metadata)
+stripe trigger payment_intent.succeeded \
+  --override payment_intent:metadata.userId=<id>
+```
+
+---
+
 ### Roulette (`/roulette`)
 
 | Метод    | Маршрут                    | Guard  | Опис                                                        |
@@ -199,7 +277,13 @@ JWT_REFRESH_EXPIRES_IN=7d
 
 ADMIN_EMAIL=admin@evoverse.local
 ADMIN_PASSWORD=Admin1234!
+
+# Stripe (test mode)
+STRIPE_API_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...
 ```
+
+> `STRIPE_WEBHOOK_SECRET` — секрет, який виводить `stripe listen` при локальній розробці.
 
 ---
 
@@ -220,7 +304,7 @@ npx prisma migrate dev
 npx prisma db seed
 
 # Сервер з hot-reload
-npm run start:dev   # http://localhost:3300
+npm run start:local   # http://localhost:3300
 ```
 
 ### Docker (повний стек)
@@ -234,4 +318,6 @@ docker compose up --build -d
 - `api` — NestJS сервер, автоматично виконує `prisma migrate deploy` при старті
 - `postgres` — PostgreSQL 17, api чекає на healthcheck перед стартом
 
-API доступне на `http://localhost:3000/`
+API доступне на `http://localhost:3300/`
+
+> **Примітка:** при запуску поза Docker (локальна розробка) бекенд читає `.env` (через `import 'dotenv/config'` у `main.ts`), а не `.env.local`. Переконайтесь, що `DATABASE_URL` у `.env` вказує на `localhost:5432`, якщо PostgreSQL запущено через Docker без мережевого аліасу.
