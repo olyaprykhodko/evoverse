@@ -9,7 +9,7 @@ RUN npm ci
 COPY prisma ./prisma
 COPY prisma.config.ts ./prisma.config.ts
 
-RUN npx prisma generate --schema ./prisma/schema.prisma
+RUN npx prisma generate
 
 COPY . .
 RUN npm run build
