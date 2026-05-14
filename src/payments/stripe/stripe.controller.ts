@@ -36,11 +36,28 @@ export class StripeController {
   @ApiResponse({ status: 201, description: 'PaymentIntent created.' })
   @ApiResponse({ status: 400, description: 'Validation error.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
-  createPaymentIntent(
+  async createPaymentIntent(
     @Req() req: Request,
     @Body() dto: PaymentDto,
-  ): Promise<Stripe.PaymentIntent> {
+  ): Promise<{
+    data: {
+      id: string;
+      client_secret: string;
+      amount: number;
+      currency: string;
+      status: Stripe.PaymentIntent.Status;
+    };
+  }> {
     const user = req.user as { sub: string };
-    return this.stripeService.createPaymentIntent(user.sub, dto);
+    const intent = await this.stripeService.createPaymentIntent(user.sub, dto);
+    return {
+      data: {
+        id: intent.id,
+        client_secret: intent.client_secret!,
+        amount: intent.amount,
+        currency: intent.currency,
+        status: intent.status,
+      },
+    };
   }
 }

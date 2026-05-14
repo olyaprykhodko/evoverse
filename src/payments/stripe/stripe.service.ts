@@ -29,8 +29,8 @@ export class StripeService {
   ): Promise<Stripe.PaymentIntent> {
     try {
       const paymentIntent = await this.stripe.paymentIntents.create({
-        amount: dto.amount,
-        currency: dto.currency,
+        amount: dto.amount * 100,
+        currency: 'uah',
         metadata: { userId: String(userId) },
       });
       this.logger.log(`PaymentIntent created: ${paymentIntent.id}`);
@@ -85,7 +85,7 @@ export class StripeService {
     return {
       provider: 'stripe',
       userId,
-      amount: pi.amount,
+      amount: Math.round(pi.amount / 100),
       paymentId: pi.id,
       description: 'Stripe deposit',
     };
