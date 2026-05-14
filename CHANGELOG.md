@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [0.0.3](https://github.com/olyaprykhodko/evoverse/compare/v0.0.2...v0.0.3) (2026-05-14)
+
+
+### Features
+
+* add Payments module with controller and service for payment processing ([8f98b88](https://github.com/olyaprykhodko/evoverse/commit/8f98b8870d8b08967ebcacc8ccd1d3ea4be28fb8))
+* enhance main.ts with CORS support and JSON body parsing for Stripe webhook ([832036a](https://github.com/olyaprykhodko/evoverse/commit/832036a3d54978a2e286e5e4d413d4cc331c614d))
+* implement Stripe module with controller and service for payment processing ([997607a](https://github.com/olyaprykhodko/evoverse/commit/997607a3a46bde321c44dd3bca6dd4bf4d495a41))
+
 ### 0.0.2 (2026-05-13)
 
 
