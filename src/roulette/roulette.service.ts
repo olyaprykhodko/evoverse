@@ -99,7 +99,7 @@ export class RouletteService {
     const payoutAmount = isWin ? amount * PAYOUT_MULTIPLIERS[type] : 0;
 
     try {
-      const bet = await this.prisma.$transaction(async (tx) => {
+      await this.prisma.$transaction(async (tx) => {
         await this.walletService.processTransaction(
           tx,
           userWallet.id,
@@ -134,15 +134,7 @@ export class RouletteService {
             isWin,
             nonce: session.nonce,
           },
-          select: {
-            id: true,
-            betType: true,
-            betAmount: true,
-            winningNumber: true,
-            payoutAmount: true,
-            isWin: true,
-            nonce: true,
-          },
+          select: { id: true, nonce: true },
         });
 
         await tx.gameSession.update({
@@ -160,7 +152,16 @@ export class RouletteService {
         return betRecord;
       });
 
-      return sendResponse('Bet placed', 200, bet);
+      const newBalance = userWallet.balance.toNumber() - amount + payoutAmount;
+
+      return sendResponse('Bet placed', 200, {
+        winningNumber: result,
+        betType: type,
+        amount,
+        payout: payoutAmount,
+        won: isWin,
+        newBalance: String(newBalance),
+      });
     } catch (err) {
       if (
         err instanceof BadRequestException ||
