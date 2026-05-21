@@ -1,0 +1,162 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  ADMIN
+  USER
+
+  @@map("role")
+}
+
+model Users {
+  id          Int       @id @default(autoincrement()) @map("id")
+  username    String?   @unique @map("username")
+  password    String?   @map("password")
+  email       String?   @unique @map("email")
+  isBanned    Boolean   @default(false) @map("is_banned")
+  isDeleted   Boolean   @default(false) @map("is_deleted")
+  banEndAt    DateTime? @map("ban_end_at")
+  role        Role      @default(USER) @map("role")
+  lastLoginIP String?   @map("last_login_ip")
+  lastLoginAt DateTime? @default(now()) @map("last_login_at")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
+
+  profile      Profiles?
+  address      Addresses?
+  gameSessions GameSession[]
+  rouletteBets RouletteBet[]
+  wallet       Wallet?
+
+  @@index([username])
+  @@index([email])
+  @@index([createdAt])
+  @@index([lastLoginIP])
+  @@map("user")
+}
+
+model Profiles {
+  userId    Int      @id @map("user_id")
+  rating    Int      @map("rating")
+  balance   Decimal  @default(0) @map("balance") @db.Decimal(18, 6)
+  avatar    String?  @map("avatar")
+  level     Int      @default(0) @map("level")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  address Addresses?
+
+  user Users @relation(fields: [userId], references: [id])
+
+  @@index([level])
+  @@index([rating])
+  @@map("profile")
+}
+
+model Addresses {
+  userId      Int      @id @map("user_id")
+  firstName   String   @map("first_name")
+  lastName    String   @map("last_name")
+  phoneNumber String   @map("phone_number")
+  address     String   @map("address")
+  address2    String?  @map("address2")
+  country     String?  @map("country")
+  postalCode  String   @map("postal_code")
+  city        String   @map("city")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  
+  user        Users    @relation(fields: [userId], references: [id], map: "address_user_id_fkey")
+  profile     Profiles @relation(fields: [userId], references: [userId], map: "address_profile_user_id_fkey")
+
+  @@index([country])
+  @@index([city])
+  @@map("address")
+}
+
+model GameSession {
+  id         String   @id @default(uuid())
+  userId     Int      @map("user_id")
+  serverSeed String   @map("server_seed")
+  serverHash String   @map("server_hash")
+  clientSeed String?  @map("client_seed")
+  nonce      Int      @default(0)
+  isOpen     Boolean  @default(true) @map("is_open")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user Users         @relation(fields: [userId], references: [id])
+  bets RouletteBet[]
+
+  @@index([userId])
+  @@index([isOpen])
+  @@map("game_session")
+}
+
+model RouletteBet {
+  id            String   @id @default(uuid())
+  userId        Int      @map("user_id")
+  gameId        String   @map("game_id")
+  betType       String   @map("bet_type")
+  targetNumber  Int?     @map("target_number")
+  betAmount     Int      @map("bet_amount")
+  winningNumber Int      @map("winning_number")
+  payoutAmount  Int      @map("payout_amount")
+  isWin         Boolean  @map("is_win")
+  nonce         Int
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  user        Users       @relation(fields: [userId], references: [id])
+  gameSession GameSession @relation(fields: [gameId], references: [id])
+
+  @@index([userId])
+  @@index([gameId])
+  @@index([isWin])
+  @@map("roulette_bet")
+}
+
+enum TransactionType {
+  DEPOSIT   
+  WITHDRAWAL 
+  PAYOUT    
+
+  @@map("transaction_type")
+}
+
+model Wallet {
+  id        String   @id @default(uuid())
+  userId    Int      @unique @map("user_id")
+  balance   Decimal  @default(0) @db.Decimal(18, 6) @map("balance")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user         Users               @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+
+  @@map("wallet")
+}
+
+model WalletTransaction {
+  id             String          @id @default(uuid())
+  walletId       String          @map("wallet_id")
+  type           TransactionType @map("type")
+  amount         Decimal         @db.Decimal(18, 6) @map("amount")
+  balanceBefore  Decimal         @db.Decimal(18, 6) @map("balance_before")
+  balanceAfter   Decimal         @db.Decimal(18, 6) @map("balance_after")
+  idempotencyKey String          @unique @map("idempotency_key")
+  description    String?         @map("description")
+  referenceId    String?         @map("reference_id")
+  createdAt      DateTime        @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@index([referenceId])
+  @@map("wallet_transaction")
+}
