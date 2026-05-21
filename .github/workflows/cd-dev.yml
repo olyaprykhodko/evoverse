@@ -248,13 +248,15 @@ jobs:
             docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }} || exit 1
           SCRIPT_AFTER_REQUIRED: true
           SCRIPT_AFTER: |
+            # remove old env file if exists
+            stat ${{ env.ENV_FILE_PATH }} && rm -f ${{ env.ENV_FILE_PATH }}
             # fetch secrets
             echo "ADMIN_EMAIL='${{ secrets.ADMIN_EMAIL }}'" >> ${{ env.ENV_FILE_PATH }}
             echo "ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}'" >> ${{ env.ENV_FILE_PATH }}
             echo "JWT_ACCESS_SECRET='${{ secrets.JWT_ACCESS_SECRET }}'" >> ${{ env.ENV_FILE_PATH }}
             echo "JWT_REFRESH_SECRET='${{ secrets.JWT_REFRESH_SECRET }}'" >> ${{ env.ENV_FILE_PATH }}
             echo "POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'" > ${{ env.ENV_FILE_PATH }}
+            echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'" >> ${{ env.ENV_FILE_PATH }}
             echo "STRIPE_API_KEY='${{ secrets.STRIPE_API_KEY }}'" >> ${{ env.ENV_FILE_PATH }}
             echo "STRIPE_RESTRICTED_KEY='${{ secrets.STRIPE_RESTRICTED_KEY }}'" >> ${{ env.ENV_FILE_PATH }}
             echo "STRIPE_WEBHOOK_SECRET='${{ secrets.STRIPE_WEBHOOK_SECRET }}'" >> ${{ env.ENV_FILE_PATH }}
