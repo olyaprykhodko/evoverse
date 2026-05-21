@@ -228,8 +228,8 @@ jobs:
     environment:
       name: prod
     env:
-      DEPLOY_DIR: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}/${{ github.repository }}-prod"
-      ENV_FILE_PATH: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}/${{ github.repository }}-prod/.env"
+      DEPLOY_DIR: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}-prod"
+      ENV_FILE_PATH: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}-prod/.env"
       DOCKER_COMPOSE_FILE: "docker-compose.deploy.yml"
     permissions:
       contents: write

@@ -214,8 +214,8 @@ jobs:
     environment:
       name: dev
     env:
-      DEPLOY_DIR: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}/${{ github.repository }}-dev"
-      ENV_FILE_PATH: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}/${{ github.repository }}-dev/.env"
+      DEPLOY_DIR: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}-dev"
+      ENV_FILE_PATH: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}-dev/.env"
       DOCKER_COMPOSE_FILE: "docker-compose.deploy.yml"
     permissions:
       contents: write
