@@ -1,0 +1,304 @@
+name: CD-Prod
+on:
+  workflow_dispatch:
+    inputs:
+      runTrivy:
+        description: Run Trivy scan
+        type: boolean
+        default: false
+        required: false
+  push:
+    paths-ignore: ["**.md", "LICENSE", ".github/dependabot.yml"]
+    branches: ["master", "main"]
+  # pull_request:
+  #   paths-ignore: ["**.md", "LICENSE", ".github/dependabot.yml"]
+  #   branches: ["master", "main"]
+  #   types: [opened, reopened]
+
+env:
+  REGISTRY: "ghcr.io"
+  IMAGE_NAME: ${{ github.repository }}
+  IMAGE_PLATFORMS: "linux/amd64"
+  ENVIRONMENT: "prod"
+
+defaults:
+  run:
+    shell: bash
+
+permissions: {}
+
+concurrency:
+  group: CD-Prod
+  cancel-in-progress: false
+
+jobs:
+  init:
+    name: Initialize CD to Prod for ${{ github.ref_name }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          disable-sudo: true
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Get Short SHA
+        id: short-sha
+        run: echo "short-sha=${GITHUB_SHA:0:7}" >> $GITHUB_OUTPUT
+
+      - name: Dry-run Semantic Release
+        id: release
+        uses: cycjimmy/semantic-release-action@v6
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          semantic_version: 25
+          dry_run: true
+          extra_plugins: |
+            conventional-changelog-conventionalcommits@9.3.0
+            @semantic-release/github@12.0.6
+
+      - name: Get new release version or assign current
+        run: |
+          if [ "${{ steps.release.outputs.new_release_version }}" != "" ]; then
+            echo "release_version=v${{ steps.release.outputs.new_release_version }}" >> $GITHUB_ENV
+          elif [ "$(git tag --points-at ${{ steps.short-sha.outputs.short-sha }})" != "" ]; then
+            echo "release_version=$(git tag --points-at ${{ steps.short-sha.outputs.short-sha }})" >> $GITHUB_ENV
+          else
+            echo "release_version=$(git describe --always --tags)" >> $GITHUB_ENV
+          fi
+
+      - name: Print Short SHA
+        run: echo "Short SHA is '${{ steps.short-sha.outputs.short-sha }}'"
+
+      - name: Print release version
+        run: echo "Release version is '${{ env.release_version }}'"
+
+    outputs:
+      short_sha: ${{ steps.short-sha.outputs.short-sha }}
+      release_version: ${{ env.release_version }}
+
+  scan:
+    name: Trivy Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: inputs.runTrivy == true
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      security-events: write
+      actions: read
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          disable-sudo: true
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@0.35.0
+        with:
+          scan-type: fs
+          scanners: vuln,secret,misconfig
+          scan-ref: ./
+          format: sarif
+          output: results.sarif
+          severity: HIGH,CRITICAL
+          exit-code: 1
+        continue-on-error: true
+
+      - name: Upload to code-scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif
+
+  docker-build-and-publish:
+    name: Docker Build and Publish
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [init]
+    environment:
+      name: prod
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          disable-sudo: true
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # Install the cosign tool except on PR
+      # https://github.com/sigstore/cosign-installer
+      - name: Install cosign
+        if: github.event_name != 'pull_request'
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: "v2.2.4"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: ${{ env.IMAGE_PLATFORMS }}
+
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+
+      - name: Build and push Docker image
+        id: build-and-push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ steps.meta.outputs.tags }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.release_version }}-${{ env.ENVIRONMENT }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ env.ENVIRONMENT }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            SHORT_SHA=${{ needs.init.outputs.short_sha }}
+            RELEASE_VERSION=${{ needs.init.outputs.release_version }}
+          cache-from: "type=gha"
+          cache-to: "type=gha,mode=max"
+          platforms: ${{ env.IMAGE_PLATFORMS }}
+
+      - name: Sign the published Docker image
+        if: ${{ github.event_name != 'pull_request' }}
+        env:
+          # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
+          TAGS: |
+            ${{ steps.meta.outputs.tags }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.release_version }}-${{ env.ENVIRONMENT }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ env.ENVIRONMENT }}
+          DIGEST: ${{ steps.build-and-push.outputs.digest }}
+        run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
+
+      - name: Delete old Docker images
+        if: github.event_name != 'pull_request'
+        uses: actions/delete-package-versions@v5
+        with:
+          package-name: ${{ github.event.repository.name }}
+          package-type: "container"
+          min-versions-to-keep: 200
+          delete-only-untagged-versions: true
+          token: ${{ github.token }}
+
+  deploy:
+    name: Deploy to Prod
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    needs: [init, docker-build-and-publish]
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    environment:
+      name: prod
+    env:
+      DEPLOY_DIR: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}/${{ github.repository }}-${{ env.ENVIRONMENT }}"
+      ENV_FILE_PATH: "${{ env.DEPLOY_DIR }}/.env"
+      FINAL_IMAGE: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }}
+      DOCKER_COMPOSE_FILE: "docker-compose.deploy.yml"
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@v2
+        with:
+          disable-sudo: true
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Semantic Release
+        id: release
+        uses: cycjimmy/semantic-release-action@v6
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        with:
+          semantic_version: 25
+          extra_plugins: |
+            conventional-changelog-conventionalcommits@9.3.0
+            @semantic-release/github@12.0.6
+
+      - name: Deploy via SSH
+        uses: easingthemes/ssh-deploy@v5.1.0
+        with:
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          REMOTE_HOST: ${{ secrets.REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.REMOTE_USER }}
+          TARGET: ${{ env.DEPLOY_DIR }}
+          SOURCE: ${{ env.DOCKER_COMPOSE_FILE }}
+          SCRIPT_BEFORE_REQUIRED: true
+          SCRIPT_BEFORE: |
+            mkdir -p ${{ env.DEPLOY_DIR }}
+            docker pull ${{ env.FINAL_IMAGE }} || exit 1
+          SCRIPT_AFTER_REQUIRED: true
+          SCRIPT_AFTER: |
+            # fetch secrets
+            echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" > ${{ env.ENV_FILE_PATH }}
+            echo "STRIPE_API_KEY=${{ secrets.STRIPE_API_KEY }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "STRIPE_RESTRICTED_KEY=${{ secrets.STRIPE_RESTRICTED_KEY }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
+            # fetch variables
+            echo "APP_EXTERNAL_PORT=${{ vars.APP_EXTERNAL_PORT }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "JWT_ACCESS_EXPIRES_IN=${{ vars.JWT_ACCESS_EXPIRES_IN }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "JWT_REFRESH_EXPIRES_IN=${{ vars.JWT_REFRESH_EXPIRES_IN }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "NODE_ENV=${{ vars.NODE_ENV }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "POSTGRES_DB=${{ vars.POSTGRES_DB }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "POSTGRES_EXTERNAL_PORT=${{ vars.POSTGRES_EXTERNAL_PORT }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "POSTGRES_HOST=${{ vars.POSTGRES_HOST }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "POSTGRES_USER=${{ vars.POSTGRES_USER }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "REDIS_HOST=${{ vars.REDIS_HOST }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "REDIS_PORT=${{ vars.REDIS_PORT }}" >> ${{ env.ENV_FILE_PATH }}
+            # replace image string in compose
+            sed -i 's|cicd_final_image|${{ env.FINAL_IMAGE }}|g' ${{ env.DEPLOY_DIR }}/${{ env.DOCKER_COMPOSE_FILE }}
+            # deploy
+            cd ${{ env.DEPLOY_DIR }}
+            docker compose --env-file ./.env --file ./${{ env.DOCKER_COMPOSE_FILE }} up --detach || exit 1
+            # cleanup old images
+            docker image prune --all --force
