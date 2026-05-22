@@ -9,6 +9,7 @@ import { RouletteModule } from './roulette/roulette.module.js';
 import { WalletModule } from './wallet/wallet.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { RedisModule } from '../redis/redis.module.js';
+import { HealthModule } from './health/health.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { RedisModule } from '../redis/redis.module.js';
     WalletModule,
     PaymentsModule,
     RedisModule,
+    HealthModule,
   ],
   controllers: [AppController],
   providers: [],
