@@ -36,6 +36,8 @@ jobs:
     name: Initialize CD to ${{ vars.ENVIRONMENT_NAME }} for ${{ github.ref_name }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    environment:
+      name: dev
     permissions:
       contents: write
       issues: write
@@ -79,6 +81,8 @@ jobs:
     name: Trivy Scan
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    environment:
+      name: dev
     if: inputs.runTrivy == true
     permissions:
       contents: read
