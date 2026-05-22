@@ -5,7 +5,9 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+
 import { PrismaService } from '../prisma/prisma.service.js';
+import { RedisService } from '../../redis/redis.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { sendResponse } from '../../utils/response.js';
 import type { JwtPayload } from './strategies/jwt-access.strategy.js';
@@ -18,6 +20,7 @@ export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
+    private readonly redisService: RedisService,
   ) {}
 
   async login(loginDto: LoginDto) {
@@ -55,15 +58,20 @@ export class AuthService {
       role: user.role,
     });
 
-    await this.prisma.users.update({
-      where: { id: user.id },
-      data: { lastLoginAt: new Date() },
-    });
+    await Promise.all([
+      this.prisma.users.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      }),
+      this.redisService.storeSession(user.id, tokens.refreshToken),
+    ]);
 
     return sendResponse('Login successful', 200, tokens);
   }
 
-  async refresh(payload: JwtPayload) {
+  async refresh(payload: JwtPayload, rawRefreshToken: string) {
+    await this.redisService.verifySession(payload.sub, rawRefreshToken);
+
     const user = await this.prisma.users.findFirst({
       where: { id: payload.sub, isDeleted: false, isBanned: false },
       select: { id: true, email: true, role: true },
@@ -77,11 +85,13 @@ export class AuthService {
       role: user.role,
     });
 
+    await this.redisService.storeSession(user.id, tokens.refreshToken);
+
     return sendResponse('Tokens refreshed', 200, tokens);
   }
 
-  // REDIS BLOCKLIST FOR TOKENS
-  logout() {
+  async logout(userId: number) {
+    await this.redisService.deleteSession(userId);
     return sendResponse('Logged out successfully', 200);
   }
 

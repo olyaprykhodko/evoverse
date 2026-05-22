@@ -48,8 +48,8 @@ export class AuthController {
   })
   @UseGuards(JwtRefreshGuard)
   @Post('refresh')
-  refresh(@Req() req: Request) {
-    return this.authService.refresh(req.user as JwtPayload);
+  refresh(@Req() req: Request, @Body('refreshToken') refreshToken: string) {
+    return this.authService.refresh(req.user as JwtPayload, refreshToken);
   }
 
   @ApiBearerAuth('JWT')
@@ -60,7 +60,7 @@ export class AuthController {
   })
   @UseGuards(JwtAccessGuard)
   @Post('logout')
-  logout() {
-    return this.authService.logout();
+  logout(@Req() req: Request) {
+    return this.authService.logout((req.user as JwtPayload).sub);
   }
 }
