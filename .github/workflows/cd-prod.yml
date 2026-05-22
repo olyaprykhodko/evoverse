@@ -270,7 +270,7 @@ jobs:
           SCRIPT_BEFORE_REQUIRED: true
           SCRIPT_BEFORE: |
             mkdir -p ${{ env.DEPLOY_DIR }}
-            docker pull ${{ env.FINAL_IMAGE }} || exit 1
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }} || exit 1
           SCRIPT_AFTER_REQUIRED: true
           SCRIPT_AFTER: |
             # remove old env file if exists
@@ -297,7 +297,7 @@ jobs:
             echo "REDIS_HOST='${{ vars.REDIS_HOST }}'" >> ${{ env.ENV_FILE_PATH }}
             echo "REDIS_PORT=${{ vars.REDIS_PORT }}" >> ${{ env.ENV_FILE_PATH }}
             # replace image string in compose
-            sed -i 's|cicd_final_image|${{ env.FINAL_IMAGE }}|g' ${{ env.DEPLOY_DIR }}/${{ env.DOCKER_COMPOSE_FILE }}
+            sed -i 's|cicd_final_image|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }}|g' ${{ env.DEPLOY_DIR }}/${{ env.DOCKER_COMPOSE_FILE }}
             # deploy
             cd ${{ env.DEPLOY_DIR }}
             docker compose --env-file ./.env --file ./${{ env.DOCKER_COMPOSE_FILE }} up --detach || exit 1
