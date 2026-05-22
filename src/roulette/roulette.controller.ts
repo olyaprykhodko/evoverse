@@ -41,7 +41,7 @@ export class RouletteController {
   })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
   @UseGuards(JwtAccessGuard)
-  @Post('join')
+  @Post('join') // create session
   join(@Req() req: Request, @Body() dto: CreateSessionDto) {
     const user = req.user as JwtPayload;
     return this.rouletteService.createSession(user.sub, dto);
