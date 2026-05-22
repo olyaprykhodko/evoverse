@@ -25,6 +25,10 @@ export class RedisService implements OnModuleDestroy {
     this.redis.disconnect();
   }
 
+  getClient(): Redis {
+    return this.redis;
+  }
+
   sessionKey(userId: number): string {
     return `auth:session:${userId}`;
   }
