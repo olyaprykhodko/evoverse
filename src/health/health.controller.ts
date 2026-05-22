@@ -38,7 +38,6 @@ export class HealthController {
         environment: {
           status: 'up',
           environment: process.env.NODE_ENV ?? 'undefined',
-          databaseName: process.env.POSTGRES_DB,
         },
       }),
     ]);
