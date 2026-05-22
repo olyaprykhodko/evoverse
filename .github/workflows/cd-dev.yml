@@ -1,4 +1,4 @@
-name: CD-Dev
+name: CD-${{ vars.ENVIRONMENT_NAME }}
 on:
   workflow_dispatch:
     inputs:
@@ -28,12 +28,12 @@ defaults:
 permissions: {}
 
 concurrency:
-  group: CD-Dev
+  group: CD-${{ vars.ENVIRONMENT_NAME }}
   cancel-in-progress: false
 
 jobs:
   init:
-    name: Initialize CD to Dev for ${{ github.ref_name }}
+    name: Initialize CD to ${{ vars.ENVIRONMENT_NAME }} for ${{ github.ref_name }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
