@@ -1,4 +1,4 @@
-name: CD-${{ vars.ENVIRONMENT_NAME }}
+name: CD-Dev
 on:
   workflow_dispatch:
     inputs:
