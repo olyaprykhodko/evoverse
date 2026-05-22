@@ -19,7 +19,6 @@ env:
   REGISTRY: "ghcr.io"
   IMAGE_NAME: ${{ github.repository }}
   IMAGE_PLATFORMS: "linux/amd64"
-  ENVIRONMENT: "dev"
 
 defaults:
   run:
@@ -33,11 +32,11 @@ concurrency:
 
 jobs:
   init:
-    name: Initialize CD to ${{ vars.ENVIRONMENT_NAME }} for ${{ github.ref_name }}
+    name: Initialize CD for ${{ github.ref_name }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment:
-      name: dev
+      name: ${{ vars.ENVIRONMENT_NAME }}
     permissions:
       contents: write
       issues: write
@@ -82,7 +81,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     environment:
-      name: dev
+      name: ${{ vars.ENVIRONMENT_NAME }}
     if: inputs.runTrivy == true
     permissions:
       contents: read
@@ -123,7 +122,7 @@ jobs:
     timeout-minutes: 10
     needs: [init]
     environment:
-      name: dev
+      name: ${{ vars.ENVIRONMENT_NAME }}
     permissions:
       contents: read
       packages: write
@@ -176,9 +175,9 @@ jobs:
           push: ${{ github.event_name != 'pull_request' }}
           tags: |
             ${{ steps.meta.outputs.tags }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.release_version }}-${{ env.ENVIRONMENT }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ env.ENVIRONMENT }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.release_version }}-${{ vars.ENVIRONMENT_NAME }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ vars.ENVIRONMENT_NAME }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ vars.ENVIRONMENT_NAME }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
             SHORT_SHA=${{ needs.init.outputs.short_sha }}
@@ -193,9 +192,9 @@ jobs:
           # https://docs.github.com/en/actions/security-guides/security-hardening-for-github-actions#using-an-intermediate-environment-variable
           TAGS: |
             ${{ steps.meta.outputs.tags }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.release_version }}-${{ env.ENVIRONMENT }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }}
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ env.ENVIRONMENT }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.release_version }}-${{ vars.ENVIRONMENT_NAME }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ vars.ENVIRONMENT_NAME }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest-${{ vars.ENVIRONMENT_NAME }}
           DIGEST: ${{ steps.build-and-push.outputs.digest }}
         run: echo "${TAGS}" | xargs -I {} cosign sign --yes {}@${DIGEST}
 
@@ -216,7 +215,7 @@ jobs:
     needs: [init, docker-build-and-publish]
     if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
     environment:
-      name: dev
+      name: ${{ vars.ENVIRONMENT_NAME }}
     env:
       DEPLOY_DIR: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}-${{ vars.ENVIRONMENT_NAME }}"
       ENV_FILE_PATH: "/home/${{ secrets.REMOTE_USER }}/${{ github.repository }}-${{ vars.ENVIRONMENT_NAME }}/.env"
@@ -249,7 +248,7 @@ jobs:
           SCRIPT_BEFORE_REQUIRED: true
           SCRIPT_BEFORE: |
             mkdir -p ${{ env.DEPLOY_DIR }}
-            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }} || exit 1
+            docker pull ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ vars.ENVIRONMENT_NAME }} || exit 1
           SCRIPT_AFTER_REQUIRED: true
           SCRIPT_AFTER: |
             # remove old env file if exists
@@ -276,7 +275,7 @@ jobs:
             echo "REDIS_HOST=${{ vars.REDIS_HOST }}" >> ${{ env.ENV_FILE_PATH }}
             echo "REDIS_PORT=${{ vars.REDIS_PORT }}" >> ${{ env.ENV_FILE_PATH }}
             # replace image string in compose
-            sed -i 's|cicd_final_image|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }}|g' ${{ env.DEPLOY_DIR }}/${{ env.DOCKER_COMPOSE_FILE }}
+            sed -i 's|cicd_final_image|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ vars.ENVIRONMENT_NAME }}|g' ${{ env.DEPLOY_DIR }}/${{ env.DOCKER_COMPOSE_FILE }}
             # deploy
             cd ${{ env.DEPLOY_DIR }}
             docker compose --env-file ./.env --file ./${{ env.DOCKER_COMPOSE_FILE }} up --detach || exit 1
