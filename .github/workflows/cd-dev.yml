@@ -251,25 +251,25 @@ jobs:
             # remove old env file if exists
             stat ${{ env.ENV_FILE_PATH }} && rm -f ${{ env.ENV_FILE_PATH }}
             # fetch secrets
-            echo "ADMIN_EMAIL='${{ secrets.ADMIN_EMAIL }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "ADMIN_PASSWORD='${{ secrets.ADMIN_PASSWORD }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "JWT_ACCESS_SECRET='${{ secrets.JWT_ACCESS_SECRET }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "JWT_REFRESH_SECRET='${{ secrets.JWT_REFRESH_SECRET }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "POSTGRES_PASSWORD='${{ secrets.POSTGRES_PASSWORD }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "REDIS_PASSWORD='${{ secrets.REDIS_PASSWORD }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "STRIPE_API_KEY='${{ secrets.STRIPE_API_KEY }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "STRIPE_RESTRICTED_KEY='${{ secrets.STRIPE_RESTRICTED_KEY }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "STRIPE_WEBHOOK_SECRET='${{ secrets.STRIPE_WEBHOOK_SECRET }}'" >> ${{ env.ENV_FILE_PATH }}
+            echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "STRIPE_API_KEY=${{ secrets.STRIPE_API_KEY }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "STRIPE_RESTRICTED_KEY=${{ secrets.STRIPE_RESTRICTED_KEY }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
             # fetch variables
             echo "APP_EXTERNAL_PORT=${{ vars.APP_EXTERNAL_PORT }}" >> ${{ env.ENV_FILE_PATH }}
-            echo "JWT_ACCESS_EXPIRES_IN='${{ vars.JWT_ACCESS_EXPIRES_IN }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "JWT_REFRESH_EXPIRES_IN='${{ vars.JWT_REFRESH_EXPIRES_IN }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "NODE_ENV='${{ vars.NODE_ENV }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "POSTGRES_DB='${{ vars.POSTGRES_DB }}'" >> ${{ env.ENV_FILE_PATH }}
+            echo "JWT_ACCESS_EXPIRES_IN=${{ vars.JWT_ACCESS_EXPIRES_IN }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "JWT_REFRESH_EXPIRES_IN=${{ vars.JWT_REFRESH_EXPIRES_IN }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "NODE_ENV=${{ vars.NODE_ENV }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "POSTGRES_DB=${{ vars.POSTGRES_DB }}" >> ${{ env.ENV_FILE_PATH }}
             echo "POSTGRES_EXTERNAL_PORT=${{ vars.POSTGRES_EXTERNAL_PORT }}" >> ${{ env.ENV_FILE_PATH }}
-            echo "POSTGRES_HOST='${{ vars.POSTGRES_HOST }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "POSTGRES_USER='${{ vars.POSTGRES_USER }}'" >> ${{ env.ENV_FILE_PATH }}
-            echo "REDIS_HOST='${{ vars.REDIS_HOST }}'" >> ${{ env.ENV_FILE_PATH }}
+            echo "POSTGRES_HOST=${{ vars.POSTGRES_HOST }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "POSTGRES_USER=${{ vars.POSTGRES_USER }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "REDIS_HOST=${{ vars.REDIS_HOST }}" >> ${{ env.ENV_FILE_PATH }}
             echo "REDIS_PORT=${{ vars.REDIS_PORT }}" >> ${{ env.ENV_FILE_PATH }}
             # replace image string in compose
             sed -i 's|cicd_final_image|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ env.ENVIRONMENT }}|g' ${{ env.DEPLOY_DIR }}/${{ env.DOCKER_COMPOSE_FILE }}
