@@ -20,7 +20,7 @@ export class HealthController {
     private readonly redisHealth: RedisHealthIndicator,
   ) {}
 
-  @Get('health')
+  @Get()
   @ApiOperation({
     summary: 'Health check',
   })
