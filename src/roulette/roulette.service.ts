@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -20,12 +21,17 @@ import * as crypto from 'node:crypto';
 import { WalletService } from '../wallet/wallet.service.js';
 import { Prisma } from '../../generated/prisma/client.js';
 import { TransactionType } from '../../generated/prisma/enums.js';
+import { RedisService } from '../../redis/redis.service.js';
+
+const GameRoom = '295d2985-2d44-4feb-8fa0-5e0c01ffd9f3';
+const redisKey = `roulette:1`;
 
 @Injectable()
 export class RouletteService {
   private readonly logger = new Logger(RouletteService.name);
 
   constructor(
+    @Inject() private readonly redis: RedisService,
     private readonly prisma: PrismaService,
     private readonly walletService: WalletService,
   ) {}
