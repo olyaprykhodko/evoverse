@@ -2,11 +2,14 @@ import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { json, raw } from 'express';
+import { IoAdapter } from '@nestjs/platform-socket.io';
 import { AppModule } from './app.module.js';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
+
+  app.useWebSocketAdapter(new IoAdapter(app));
 
   app.use('/payments/webhook/stripe', raw({ type: 'application/json' }));
 

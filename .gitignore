@@ -57,6 +57,9 @@ CURRENT_TODO.md
 SKILL.md
 copilot-instructions.md
 
+# Docs
+implementation.md
+
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
