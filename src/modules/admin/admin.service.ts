@@ -145,8 +145,8 @@ export class AdminService {
     await this.ensureUserExists(id);
 
     const secret = process.env.ADMIN_SECRET;
-    if (!secret || dto.adminPassword !== secret) {
-      throw new ForbiddenException('Invalid admin password');
+    if (!secret || dto.adminSecret !== secret) {
+      throw new ForbiddenException('Invalid admin secret');
     }
 
     try {
