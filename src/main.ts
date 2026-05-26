@@ -11,7 +11,7 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  app.use('/payments/webhook/stripe', raw({ type: 'application/json' }));
+  app.use('/stripe/webhook', raw({ type: 'application/json' }));
 
   app.use(json());
 
