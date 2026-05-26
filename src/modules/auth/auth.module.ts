@@ -7,10 +7,7 @@ import { JwtAccessStrategy } from '../../strategies/jwt-access.strategy.js';
 import { JwtRefreshStrategy } from '../../strategies/jwt-refresh.strategy.js';
 
 @Module({
-  imports: [
-    PassportModule,
-    JwtModule.register({}), // secrets are passed per-call in generateTokens()
-  ],
+  imports: [PassportModule, JwtModule.register({})],
   controllers: [AuthController],
   providers: [AuthService, JwtAccessStrategy, JwtRefreshStrategy],
 })
