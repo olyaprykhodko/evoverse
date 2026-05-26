@@ -34,6 +34,10 @@ model Users {
   gameSessions GameSession[]
   rouletteBets RouletteBet[]
   wallet       Wallet?
+  userWeapons  UserWeapon[]
+  battlesAsP1  BattleSession[] @relation("player1_battles")
+  battlesAsP2  BattleSession[] @relation("player2_battles")
+  battleStats  BattleStats?
 
   @@index([username])
   @@index([email])
@@ -44,8 +48,7 @@ model Users {
 
 model Profiles {
   userId    Int      @id @map("user_id")
-  rating    Int      @map("rating")
-  balance   Decimal  @default(0) @map("balance") @db.Decimal(18, 6)
+  rating    Int      @default(0) @map("rating")
   avatar    String?  @map("avatar")
   level     Int      @default(0) @map("level")
   createdAt DateTime @default(now()) @map("created_at")
@@ -138,6 +141,8 @@ model Wallet {
 
   user         Users               @relation(fields: [userId], references: [id])
   transactions WalletTransaction[]
+  coins        Int                 @default(0) @map("coins")
+  coinTransactions CoinTransaction[]
 
   @@map("wallet")
 }
@@ -159,4 +164,116 @@ model WalletTransaction {
   @@index([walletId])
   @@index([referenceId])
   @@map("wallet_transaction")
+}
+
+enum CoinTransactionType {
+  EARNED_BATTLE
+  SPENT_WEAPON
+  CONVERTED_TO_CASH
+  ROULETTE_BET
+  ROULETTE_WIN
+  PURCHASED_COINS
+
+  @@map("coin_transaction_type")
+}
+
+model CoinTransaction {
+  id            String              @id @default(uuid())
+  walletId      String              @map("wallet_id")
+  type          CoinTransactionType @map("type")
+  amount        Int                 @map("amount")
+  balanceBefore Int                 @map("balance_before")
+  balanceAfter  Int                 @map("balance_after")
+  referenceId   String?             @map("reference_id")
+  description   String?             @map("description")
+  createdAt     DateTime            @default(now()) @map("created_at")
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@map("coin_transaction")
+}
+
+enum WeaponRarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+
+  @@map("weapon_rarity")
+}
+
+model Weapon {
+  id        Int          @id @default(autoincrement())
+  name      String       @unique @map("name")
+  price     Int          @map("price")
+  minDamage Int          @map("min_damage")
+  maxDamage Int          @map("max_damage")
+  rarity    WeaponRarity @map("rarity")
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  userWeapons  UserWeapon[]
+  battlesAsW1  BattleSession[] @relation("weapon1_battles")
+  battlesAsW2  BattleSession[] @relation("weapon2_battles")
+
+  @@map("weapon")
+}
+
+model UserWeapon {
+  id       String   @id @default(uuid())
+  userId   Int      @map("user_id")
+  weaponId Int      @map("weapon_id")
+  boughtAt DateTime @default(now()) @map("bought_at")
+
+  user   Users  @relation(fields: [userId], references: [id])
+  weapon Weapon @relation(fields: [weaponId], references: [id])
+
+  @@unique([userId, weaponId])
+  @@index([userId])
+  @@map("user_weapon")
+}
+
+
+enum BattleStatus {
+  WAITING
+  IN_PROGRESS
+  FINISHED
+  ABANDONED
+
+  @@map("battle_status")
+}
+
+model BattleSession {
+  id         String       @id @default(uuid())
+  player1Id  Int          @map("player1_id")
+  player2Id  Int          @map("player2_id")
+  weapon1Id  Int          @map("weapon1_id")
+  weapon2Id  Int          @map("weapon2_id")
+  status     BattleStatus @default(IN_PROGRESS) @map("status")
+  winnerId   Int?         @map("winner_id")
+  rounds     Json         @default("[]") @map("rounds")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  finishedAt DateTime?    @map("finished_at")
+
+  player1 Users  @relation("player1_battles", fields: [player1Id], references: [id])
+  player2 Users  @relation("player2_battles", fields: [player2Id], references: [id])
+  weapon1 Weapon @relation("weapon1_battles", fields: [weapon1Id], references: [id])
+  weapon2 Weapon @relation("weapon2_battles", fields: [weapon2Id], references: [id])
+
+  @@index([player1Id])
+  @@index([player2Id])
+  @@index([status])
+  @@map("battle_session")
+}
+
+model BattleStats {
+  userId        Int @id @map("user_id")
+  totalWins     Int @default(0) @map("total_wins")
+  totalLosses   Int @default(0) @map("total_losses")
+  currentStreak Int @default(0) @map("current_streak")
+  maxStreak     Int @default(0) @map("max_streak")
+
+  user Users @relation(fields: [userId], references: [id])
+
+  @@map("battle_stats")
 }
