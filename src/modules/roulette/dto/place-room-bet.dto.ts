@@ -1,6 +1,7 @@
 import {
   IsEnum,
   IsInt,
+  IsOptional,
   IsString,
   Max,
   Min,
@@ -10,36 +11,28 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { BetType } from '../entities/bet-types.js';
+import { BetType } from '../entities/bet-entities.js';
 
 export class PlaceRoomBetDto {
-  @ApiProperty({
-    example: 'my-lucky-seed-2026',
-    minLength: 8,
-    maxLength: 64,
-    description:
-      "Player's own client seed — stored with the bet for personal provably-fair verification after the round. Does not affect the winning number.",
+  @ApiPropertyOptional({
+    example: 'table-1',
+    description: 'Table ID to place the bet on (default: table-1)',
   })
+  @IsOptional()
+  @IsString()
+  tableId?: string = 'table-1';
+
+  @ApiProperty({ example: 'my-lucky-seed-2026', minLength: 8, maxLength: 64 })
   @IsString()
   @MinLength(8)
   @MaxLength(64)
   clientSeed: string;
 
-  @ApiProperty({
-    enum: BetType,
-    example: BetType.RED,
-    description: 'Bet type: STRAIGHT, RED, BLACK, EVEN, ODD, DOZEN',
-  })
+  @ApiProperty({ enum: BetType, example: BetType.RED })
   @IsEnum(BetType)
   type: BetType;
 
-  @ApiPropertyOptional({
-    example: 7,
-    minimum: 0,
-    maximum: 36,
-    description:
-      'Required for STRAIGHT (0–36) and DOZEN (1 = 1–12, 2 = 13–24, 3 = 25–36)',
-  })
+  @ApiPropertyOptional({ example: 7, minimum: 0, maximum: 36 })
   @ValidateIf(
     (o: PlaceRoomBetDto) =>
       o.type === BetType.STRAIGHT || o.type === BetType.DOZEN,
@@ -53,7 +46,7 @@ export class PlaceRoomBetDto {
   @ApiProperty({
     example: 100,
     minimum: 1,
-    description: 'Bet amount in game coins',
+    description: 'Bet amount in Glow Coins',
   })
   @IsInt()
   @Min(1)

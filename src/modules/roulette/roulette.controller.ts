@@ -8,7 +8,9 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
+
 import type { Request } from 'express';
+
 import {
   ApiTags,
   ApiOperation,
@@ -17,11 +19,13 @@ import {
   ApiUnauthorizedResponse,
   ApiQuery,
 } from '@nestjs/swagger';
+
 import { RouletteService } from './roulette.service.js';
-import { PlaceRoomBetDto } from './dto/place-room-bet.dto.js';
-import { VerifyGameDto } from './dto/verify-game.dto.js';
 import { JwtAccessGuard } from '../../guards/jwt-access.guard.js';
 import type { JwtPayload } from '../../strategies/jwt-access.strategy.js';
+
+import { PlaceRoomBetDto } from './dto/place-room-bet.dto.js';
+import { VerifyGameDto } from './dto/verify-game.dto.js';
 
 @ApiTags('Roulette')
 @Controller('roulette')
