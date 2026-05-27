@@ -67,7 +67,6 @@ export class UsersService {
         profile: {
           select: {
             rating: true,
-            balance: true,
             avatar: true,
             level: true,
             address: {
@@ -82,6 +81,12 @@ export class UsersService {
                 postalCode: true,
               },
             },
+          },
+        },
+        wallet: {
+          select: {
+            coins: true,
+            balance: true,
           },
         },
       },
@@ -101,6 +106,7 @@ export class UsersService {
           select: {
             rating: true,
             level: true,
+            avatar: true,
             createdAt: true,
             address: {
               select: {
@@ -118,7 +124,7 @@ export class UsersService {
   }
 
   async update(id: number, updateUserDto: UpdateUserDto) {
-    const { username, password, email } = updateUserDto;
+    const { username, password, email, avatar } = updateUserDto;
 
     const userExists = await this.prisma.users.findFirst({
       where: { id },
@@ -145,6 +151,9 @@ export class UsersService {
           ...(username !== undefined && { username }),
           ...(email !== undefined && { email }),
           ...(hashedPassword !== undefined && { password: hashedPassword }),
+          ...(avatar !== undefined && {
+            profile: { update: { avatar } },
+          }),
         },
       });
     } catch (err) {
