@@ -38,6 +38,7 @@ model Users {
   battlesAsP1  BattleSession[] @relation("player1_battles")
   battlesAsP2  BattleSession[] @relation("player2_battles")
   battleStats  BattleStats?
+  slotSpins    SlotSpin[]
 
   @@index([username])
   @@index([email])
@@ -173,6 +174,8 @@ enum CoinTransactionType {
   ROULETTE_BET
   ROULETTE_WIN
   PURCHASED_COINS
+  SLOT_BET
+  SLOT_WIN
 
   @@map("coin_transaction_type")
 }
@@ -264,6 +267,32 @@ model BattleSession {
   @@index([player2Id])
   @@index([status])
   @@map("battle_session")
+}
+
+model SlotSpin {
+  id           String   @id @default(uuid())
+  userId       Int      @map("user_id")
+  serverSeed   String   @map("server_seed")
+  serverHash   String   @map("server_hash")
+  clientSeed   String   @map("client_seed")
+  nonce        Int
+  stop1        Int      @map("stop1")
+  stop2        Int      @map("stop2")
+  stop3        Int      @map("stop3")
+  sym1         String   @map("sym1")
+  sym2         String   @map("sym2")
+  sym3         String   @map("sym3")
+  betAmount    Int      @map("bet_amount")
+  payoutAmount Int      @map("payout_amount")
+  isWin        Boolean  @map("is_win")
+  winType      String?  @map("win_type")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user Users @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([isWin])
+  @@map("slot_spin")
 }
 
 model BattleStats {
