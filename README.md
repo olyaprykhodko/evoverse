@@ -2,7 +2,7 @@
 
 REST + WebSocket API для iGaming платформи GlowVerse. Включає реєстрацію, JWT-авторизацію, рулетку, слоти, PvP-бої, магазин зброї, гаманець USD/GC та інтеграцію зі Stripe.
 
-**Swagger UI:** `https://dev.evoverse.dpdns.org`
+**Swagger UI:** [https://dev.evoverse.dpdns.org](https://dev.evoverse.dpdns.org)
 
 ---
 
