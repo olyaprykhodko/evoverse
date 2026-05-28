@@ -15,17 +15,17 @@ async function bootstrap() {
 
   app.use(json());
 
-  const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    /^https:\/\/[a-z0-9]+\.glowverse\.pages\.dev$/,
-  ].filter(Boolean) as (string | RegExp)[];
+  // const allowedOrigins = [
+  //   process.env.FRONTEND_URL,
+  //   /^https:\/\/[a-z0-9]+\.glowverse\.pages\.dev$/,
+  // ].filter(Boolean) as (string | RegExp)[];
 
-  app.enableCors({
-    origin: allowedOrigins,
-    methods: 'GET,POST,PUT,PATCH,DELETE',
-    credentials: true,
-    allowedHeaders: 'Content-Type, Authorization',
-  });
+  // app.enableCors({
+  //   origin: allowedOrigins,
+  //   methods: 'GET,POST,PUT,PATCH,DELETE',
+  //   credentials: true,
+  //   allowedHeaders: 'Content-Type, Authorization',
+  // });
 
   app.useGlobalPipes(
     new ValidationPipe({
