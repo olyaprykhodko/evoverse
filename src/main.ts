@@ -15,9 +15,14 @@ async function bootstrap() {
 
   app.use(json());
 
+  const allowedOrigins = [
+    process.env.FRONTEND_URL,
+    /^https:\/\/[a-z0-9]+\.glowverse\.pages\.dev$/,
+  ].filter(Boolean) as (string | RegExp)[];
+
   app.enableCors({
-    origin: process.env.FRONTEND_URL,
-    methods: 'GET,POST,PUT, PATCH, DELETE',
+    origin: allowedOrigins,
+    methods: 'GET,POST,PUT,PATCH,DELETE',
     credentials: true,
     allowedHeaders: 'Content-Type, Authorization',
   });
