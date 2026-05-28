@@ -2,7 +2,8 @@
 
 REST + WebSocket API для iGaming платформи GlowVerse. Включає реєстрацію, JWT-авторизацію, рулетку, слоти, PvP-бої, магазин зброї, гаманець USD/GC та інтеграцію зі Stripe.
 
-**Swagger UI:** `https://dev.evoverse.dpdns.org`
+**Web App:** [https://evoverse.dpdns.org](https://evoverse.dpdns.org)
+**Swagger UI:** [https://api.evoverse.dpdns.org](https://api.evoverse.dpdns.org)
 
 ---
 
@@ -248,6 +249,7 @@ REDIS_PASSWORD=your_redis_password
 ```bash
 git clone https://github.com/olyaprykhodko/evoverse
 cd evoverse
+git checkout main
 npm install
 cp .env.example .env
 # Відредагуй .env — DATABASE_URL хост = localhost, REDIS_HOST = 127.0.0.1
