@@ -4,12 +4,17 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+
 import * as crypto from 'node:crypto';
+
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { RedisService } from '../../../redis/redis.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
+
 import { CoinTransactionType } from '../../../generated/prisma/enums.js';
+
 import { sendResponse } from '../../common/utils/response.js';
+
 import { SpinDto } from './dto/spin.dto.js';
 import { VerifySpinDto } from './dto/verify-spin.dto.js';
 import {
@@ -21,17 +26,7 @@ import {
   SLOT_SESSION_TTL,
   SlotSymbol,
 } from './slot.constants.js';
-
-interface SlotSession {
-  serverSeed: string;
-  serverHash: string;
-  nonce: number;
-}
-
-interface WinResult {
-  multiplier: number;
-  winType: '3oak' | '2oak' | null;
-}
+import { SlotSession, WinResult } from './entities/slot.entities.js';
 
 @Injectable()
 export class SlotService {
@@ -42,8 +37,6 @@ export class SlotService {
     private readonly redis: RedisService,
     private readonly walletService: WalletService,
   ) {}
-
-  // ─── Session ──────────────────────────────────────────────────────────────
 
   async getSession(userId: number) {
     const existing = await this.loadSession(userId);
@@ -57,10 +50,7 @@ export class SlotService {
     return sendResponse('Session created', 201, { serverHash, nonce });
   }
 
-  // ─── Spin ─────────────────────────────────────────────────────────────────
-
   async spin(userId: number, dto: SpinDto) {
-    // Load or auto-create session
     let session = await this.loadSession(userId);
     if (!session) {
       this.logger.log(`Auto-creating slot session for user ${userId}`);
@@ -73,7 +63,6 @@ export class SlotService {
       await this.saveSession(userId, session);
     }
 
-    // Check balance
     const wallet = await this.prisma.wallet.findUnique({
       where: { userId },
       select: { id: true, coins: true },
@@ -87,7 +76,6 @@ export class SlotService {
 
     const { serverSeed, serverHash, nonce } = session;
 
-    // Compute stops and symbols
     const stops = this.computeStops(serverSeed, dto.clientSeed, nonce);
     const symbols = stops.map((stop, i) => REELS[i][stop]) as [
       SlotSymbol,
@@ -95,12 +83,10 @@ export class SlotService {
       SlotSymbol,
     ];
 
-    // Evaluate win
     const { multiplier, winType } = this.evaluateWin(symbols);
     const payoutAmount = Math.floor(dto.bet * multiplier * SCALING_FACTOR);
     const isWin = payoutAmount > 0;
 
-    // Persist: deduct bet, credit win (if any), record spin — all in one transaction
     await this.prisma.$transaction(async (tx) => {
       await this.walletService.processCoinTransaction(
         tx,
@@ -143,10 +129,8 @@ export class SlotService {
       });
     });
 
-    // Rotate to next seed (pre-commit for next spin)
     const next = await this.rotateSession(userId, nonce + 1);
 
-    // Fetch updated coin balance
     const updatedWallet = await this.prisma.wallet.findUnique({
       where: { userId },
       select: { coins: true },
@@ -162,7 +146,7 @@ export class SlotService {
       isWin,
       winType: winType ?? null,
       provablyFair: {
-        serverSeed, // revealed — client can now verify
+        serverSeed,
         serverHash,
         clientSeed: dto.clientSeed,
         nonce,
@@ -170,8 +154,6 @@ export class SlotService {
       next: { serverHash: next.serverHash, nonce: next.nonce },
     });
   }
-
-  // ─── History ──────────────────────────────────────────────────────────────
 
   async getHistory(userId: number, limit: number) {
     const spins = await this.prisma.slotSpin.findMany({
@@ -199,8 +181,6 @@ export class SlotService {
     return sendResponse('Spin history fetched', 200, spins);
   }
 
-  // ─── Verify ───────────────────────────────────────────────────────────────
-
   verifyResult(dto: VerifySpinDto) {
     const stops = this.computeStops(dto.serverSeed, dto.clientSeed, dto.nonce);
     const symbols = stops.map((stop, i) => REELS[i][stop]) as [
@@ -222,8 +202,6 @@ export class SlotService {
       serverHash,
     });
   }
-
-  // ─── Private helpers ──────────────────────────────────────────────────────
 
   private computeStops(
     serverSeed: string,
@@ -248,11 +226,9 @@ export class SlotService {
     if (s1 === s2 && s2 === s3) {
       return { multiplier: PAYTABLE_3OAK[s1], winType: '3oak' };
     }
-    // Left-to-right 2-of-a-kind: only first two reels count
     if (s1 === s2) {
       return { multiplier: PAYTABLE_2OAK[s1], winType: '2oak' };
     }
-    // s1 === s3 or s2 === s3 do not pay in this model
     void s3;
     return { multiplier: 0, winType: null };
   }
