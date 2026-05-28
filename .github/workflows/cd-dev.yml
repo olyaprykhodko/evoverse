@@ -263,6 +263,7 @@ jobs:
             # fetch secrets
             echo "ADMIN_EMAIL=${{ secrets.ADMIN_EMAIL }}" >> ${{ env.ENV_FILE_PATH }}
             echo "ADMIN_PASSWORD=${{ secrets.ADMIN_PASSWORD }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "ADMIN_SECRET=${{ secrets.ADMIN_SECRET}}" >> ${{env.ENV_FILE_PATH}}
             echo "JWT_ACCESS_SECRET=${{ secrets.JWT_ACCESS_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
             echo "JWT_REFRESH_SECRET=${{ secrets.JWT_REFRESH_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
             echo "POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}" >> ${{ env.ENV_FILE_PATH }}
@@ -281,6 +282,7 @@ jobs:
             echo "POSTGRES_USER=${{ vars.POSTGRES_USER }}" >> ${{ env.ENV_FILE_PATH }}
             echo "REDIS_HOST=${{ vars.REDIS_HOST }}" >> ${{ env.ENV_FILE_PATH }}
             echo "REDIS_PORT=${{ vars.REDIS_PORT }}" >> ${{ env.ENV_FILE_PATH }}
+            echo "FRONTEND_URL=${{ vars.FRONTEND_URL}}" >> ${{ env.ENV_FILE_PATH }}
             # replace image string in compose
             sed -i 's|cicd_final_image|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ vars.ENVIRONMENT_NAME }}|g' ${{ env.DEPLOY_DIR }}/${{ env.DOCKER_COMPOSE_FILE }}
             # deploy
