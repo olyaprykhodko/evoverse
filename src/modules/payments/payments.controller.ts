@@ -35,7 +35,7 @@ export class PaymentsController {
       throw new BadRequestException('Missing stripe-signature header');
     }
 
-    const event = this.stripeService.verifyAndParseWebhook(
+    const event = this.stripeService.parseWebhookEvent(
       req.body as Buffer,
       signature,
     );
