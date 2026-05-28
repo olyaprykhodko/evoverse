@@ -250,7 +250,6 @@ REDIS_PASSWORD=your_redis_password
 ```bash
 git clone https://github.com/olyaprykhodko/evoverse
 cd evoverse
-git checkout develop (or main)
 npm install
 cp .env.example .env
 # Відредагуй .env — DATABASE_URL хост = localhost, REDIS_HOST = 127.0.0.1
