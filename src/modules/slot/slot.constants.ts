@@ -10,10 +10,7 @@ export enum SlotSymbol {
 
 export const REEL_LENGTH = 31;
 
-// Static reel strips extracted from slot model.xlsx
-// Reels 1 & 2 are identical; Reel 3 is "tighter" (more rare symbols) for RTP control
 export const REELS: SlotSymbol[][] = [
-  // Reel 1
   [
     SlotSymbol.LEMON,
     SlotSymbol.LEMON,
@@ -47,7 +44,6 @@ export const REELS: SlotSymbol[][] = [
     SlotSymbol.SEVEN,
     SlotSymbol.DIAMOND,
   ],
-  // Reel 2 (identical to Reel 1)
   [
     SlotSymbol.LEMON,
     SlotSymbol.LEMON,
@@ -81,7 +77,6 @@ export const REELS: SlotSymbol[][] = [
     SlotSymbol.SEVEN,
     SlotSymbol.DIAMOND,
   ],
-  // Reel 3 — more rare symbols to control RTP
   [
     SlotSymbol.LEMON,
     SlotSymbol.LEMON,
@@ -117,7 +112,6 @@ export const REELS: SlotSymbol[][] = [
   ],
 ];
 
-// 3-of-a-kind payout multipliers (source: slot model.xlsx)
 export const PAYTABLE_3OAK: Record<SlotSymbol, number> = {
   [SlotSymbol.LEMON]: 14,
   [SlotSymbol.CHERRY]: 16,
@@ -128,7 +122,6 @@ export const PAYTABLE_3OAK: Record<SlotSymbol, number> = {
   [SlotSymbol.DIAMOND]: 150,
 };
 
-// 2-of-a-kind payout multipliers (left-to-right: sym1 === sym2)
 export const PAYTABLE_2OAK: Record<SlotSymbol, number> = {
   [SlotSymbol.LEMON]: 0.6,
   [SlotSymbol.CHERRY]: 0.8,
@@ -139,8 +132,6 @@ export const PAYTABLE_2OAK: Record<SlotSymbol, number> = {
   [SlotSymbol.DIAMOND]: 10,
 };
 
-// Payouts match paytable exactly; theoretical RTP ~95.58%
 export const SCALING_FACTOR = 1;
 
-// Redis session TTL: 24 hours
 export const SLOT_SESSION_TTL = 60 * 60 * 24;

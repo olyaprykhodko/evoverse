@@ -30,9 +30,9 @@ import type { JwtPayload } from '../../strategies/jwt-access.strategy.js';
 export class SlotController {
   constructor(private readonly slotService: SlotService) {}
 
-  @Get('session')
+  @Get('session') // join slot
   @ApiOperation({
-    summary: 'Get or create provably fair session',
+    summary: 'Get or create slot session',
     description:
       'Returns the pre-committed serverHash and current nonce. ' +
       'Call this before spinning to receive the server commitment.',
@@ -44,7 +44,7 @@ export class SlotController {
     return this.slotService.getSession(user.sub);
   }
 
-  @Post('spin')
+  @Post('spin') // spin slot
   @ApiOperation({
     summary: 'Spin the slot',
     description:
@@ -58,7 +58,7 @@ export class SlotController {
     return this.slotService.spin(user.sub, dto);
   }
 
-  @Get('history')
+  @Get('history') // get history of bets and spins
   @ApiOperation({ summary: 'Get own spin history' })
   @ApiQuery({ name: 'limit', required: false, type: Number, example: 20 })
   @ApiOkResponse({ description: 'Spin history fetched' })
@@ -71,7 +71,7 @@ export class SlotController {
     return this.slotService.getHistory(user.sub, limit);
   }
 
-  @Post('verify')
+  @Post('verify') // verify result
   @ApiOperation({
     summary: 'Verify a past spin result (public)',
     description:
