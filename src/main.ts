@@ -11,15 +11,7 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  app.enableCors({
-    origin: process.env.FRONTEND_URL?.split(',') ?? 'http://localhost:3000',
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    credentials: true,
-    allowedHeaders: ['Content-Type', 'Authorization'],
-  });
-
   app.use('/stripe/webhook', raw({ type: 'application/json' }));
-  app.use('/payments/webhook/stripe', raw({ type: 'application/json' }));
 
   app.use(json());
 
