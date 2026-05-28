@@ -1,323 +1,287 @@
-# Evoverse — Game Backend API
+# GlowVerse Game Platform Backend API
 
-REST API для онлайн-казино гри з реєстрацією, JWT-авторизацією, рулеткою з алгоритмом Provably Fair, гаманцем, інтеграцією Stripe та адміністративною панеллю.
+REST + WebSocket API для iGaming платформи GlowVerse. Включає реєстрацію, JWT-авторизацію, рулетку, слоти, PvP-бої, магазин зброї, гаманець USD/GC та інтеграцію зі Stripe.
 
-API документація: http://localhost:3300/
+**Swagger UI:** `https://dev.evoverse.dpdns.org`
 
 ---
 
 ## Стек
 
-- **Runtime:** Node.js 25 + TypeScript (ESM, NodeNext)
-- **Framework:** NestJS 11
-- **Database:** PostgreSQL 17 + Prisma 7
-- **Auth:** JWT via `@nestjs/jwt` + `passport-jwt`
-- **Password hashing:** argon2
-- **Payments:** Stripe (`stripe@22`, API version `2026-04-22.dahlia`)
-- **Docs:** Swagger
-- **Container:** Docker (multi-stage build) + Docker Compose
+| Шар              | Технологія                             |
+| ---------------- | -------------------------------------- |
+| Runtime          | Node.js 22 + TypeScript (ESM)          |
+| Framework        | NestJS 11                              |
+| Database         | PostgreSQL 17 + Prisma 7               |
+| Cache / Sessions | Redis 8                                |
+| Auth             | JWT (access 15m + refresh 7d) + argon2 |
+| Payments         | Stripe API `2026-04-22.dahlia`         |
+| Real-time        | Socket.IO (WebSocket)                  |
+| Container        | Docker multi-stage + Docker Compose    |
 
 ---
 
-## Опис
+## Модулі
 
-- Реєстрація та JWT-авторизація (access + refresh токени)
-- Профіль користувача: перегляд власного профілю, публічний профіль за ID
-- Деактивація акаунту
-- Адреса користувача: створення та оновлення
-- Адмін-панель: перегляд, бан, розбан, зміна ролі, видалення, статистика платформи
-- Гаманець:
-  - Автоматичне створення wallet при реєстрації
-  - Ручне поповнення балансу з idempotency key (безпечний ретрай)
-  - Повна незмінна історія транзакцій (ledger)
-  - Захист від race condition через `SELECT FOR UPDATE`
-- Рулетка:
-  - Створення ігрової сесії з serverHash
-  - Ставки: STRAIGHT, RED, BLACK, EVEN, ODD, DOZEN
-  - Списання та нарахування через wallet в одній транзакції
-  - Вихід із сесії розкриває serverSeed
-  - Публічна верифікація результату без БД
-- Платежі (Stripe):
-  - Поповнення гаманця через Stripe Payment Element
-  - Створення PaymentIntent (`POST /stripe/deposit`)
-  - Webhook-обробник (`POST /payments/webhook/stripe`): верифікація підпису і нарахування балансу на гаманець
-  - Безпечний raw body parsing для підпису, JSON body для решти маршрутів
+### Auth `/auth`
+
+| Метод | Маршрут         | Guard   | Опис                                             |
+| ----- | --------------- | ------- | ------------------------------------------------ |
+| POST  | `/auth/login`   | —       | email + password → `accessToken`, `refreshToken` |
+| POST  | `/auth/refresh` | Refresh | `{ refreshToken }` в body → нові токени          |
+| POST  | `/auth/logout`  | Bearer  | Інвалідація сесії в Redis                        |
+
+Access-токен живе 15 хв, refresh — 7 днів. Refresh-токен зберігається в Redis; logout видаляє запис.
 
 ---
 
-### Guards
+### Users `/users`
 
-```
-Запит → JwtAccessGuard → Controller
-Запит → AdminGuard (extends JwtAccessGuard) → Admin Controller
-```
+| Метод  | Маршрут      | Guard  | Опис                                               |
+| ------ | ------------ | ------ | -------------------------------------------------- |
+| POST   | `/users`     | —      | Реєстрація (`username?`, `email`, `password`)      |
+| GET    | `/users/me`  | Bearer | Власний профіль з балансом, адресою, героєм        |
+| GET    | `/users/:id` | Bearer | Публічний профіль                                  |
+| PATCH  | `/users/:id` | Bearer | Оновити username / email / password / selectedHero |
+| DELETE | `/users/:id` | Bearer | Soft delete (`isDeleted: true`)                    |
 
-| Guard             | Що робить                                                           |
-| ----------------- | ------------------------------------------------------------------- |
-| `JwtAccessGuard`  | Перевіряє Bearer токен, повертає зрозуміле повідомлення при помилці |
-| `JwtRefreshGuard` | Читає `refreshToken` з body запиту                                  |
-| `AdminGuard`      | Повертає `403 Forbidden`, якщо `role !== 'ADMIN'`                   |
-
----
-
-## Структура
-
-```
-src/
-├── main.ts                              # Bootstrap: ValidationPipe, Swagger
-├── app.module.ts                        # Кореневий модуль
-├── prisma/
-│   ├── prisma.module.ts                 # Глобальний PrismaModule
-│   └── prisma.service.ts                # PrismaClient
-├── auth/
-│   ├── dto/login.dto.ts
-│   ├── guards/
-│   │   ├── jwt-access.guard.ts          # Bearer токен + людські повідомлення про помилки
-│   │   ├── jwt-refresh.guard.ts
-│   │   └── admin.guard.ts               # extends JwtAccessGuard + role check
-│   ├── strategies/
-│   │   ├── jwt-access.strategy.ts       # JwtPayload: { sub, email, role }
-│   │   └── jwt-refresh.strategy.ts
-│   ├── auth.controller.ts               # POST /auth/login|refresh|logout
-│   ├── auth.service.ts
-│   └── auth.module.ts
-├── users/
-│   ├── dto/
-│   │   ├── create-user.dto.ts
-│   │   └── update-user.dto.ts
-│   ├── users.controller.ts              # POST /users, GET /users/me|:id, PATCH|DELETE /users/:id
-│   ├── users.service.ts
-│   └── users.module.ts
-├── address/
-│   ├── dto/
-│   │   ├── create-address.dto.ts
-│   │   └── update-address.dto.ts
-│   ├── address.controller.ts            # POST|PATCH /address
-│   ├── address.service.ts
-│   └── address.module.ts
-├── admin/
-│   ├── dto/
-│   │   ├── ban-user.dto.ts
-│   │   ├── update-role.dto.ts
-│   │   └── update-profile.dto.ts
-│   ├── admin.controller.ts              # GET|PATCH|DELETE /admin/...
-│   ├── admin.service.ts
-│   └── admin.module.ts
-├── roulette/
-│   ├── dto/
-│   │   ├── create-session.dto.ts
-│   │   ├── place-bet.dto.ts
-│   │   └── verify-game.dto.ts
-│   ├── entities/
-│   │   └── bet-types.ts                 # BetType enum, PAYOUT_MULTIPLIERS, RED_NUMBERS
-│   ├── roulette.controller.ts           # POST /roulette/join|bet|verify, DELETE /roulette/leave/:id, GET /roulette/history
-│   ├── roulette.service.ts
-│   └── roulette.module.ts
-├── payments/
-│   ├── payments.controller.ts           # POST /payments/webhook/stripe (без JWT, Stripe-signature)
-│   ├── payments.service.ts              # handlePaymentConfirmed → wallet ledger
-│   ├── payments.module.ts
-│   └── stripe/
-│       ├── constants/
-│       │   └── client.ts                # STRIPE_CLIENT injection token
-│       ├── dto/
-│       │   └── payment.dto.ts           # amount (монети)
-│       ├── stripe.controller.ts         # POST /stripe/deposit (JWT guard)
-│       ├── stripe.service.ts            # createPaymentIntent, verifyAndParseWebhook
-│       └── stripe.module.ts
-└── wallet/
-    ├── dto/
-    │   └── deposit.dto.ts               # amount, idempotencyKey (UUID v4), description?
-    ├── wallet.controller.ts             # GET /wallet/me|transactions, POST /wallet/deposit
-    ├── wallet.service.ts                # processTransaction із SELECT FOR UPDATE
-    └── wallet.module.ts
-```
+При реєстрації автоматично створюється `Wallet` (USD баланс + GC баланс = 0).
 
 ---
 
-## API
+### Wallet `/wallet`
 
-Авторизація: `Authorization: Bearer <accessToken>` у заголовку кожного захищеного запиту.
+| Метод | Маршрут                             | Guard  | Опис                               |
+| ----- | ----------------------------------- | ------ | ---------------------------------- |
+| GET   | `/wallet/me`                        | Bearer | USD баланс + останні 10 транзакцій |
+| GET   | `/wallet/transactions?limit=`       | Bearer | Повна USD-історія (макс. 100)      |
+| GET   | `/wallet/coins`                     | Bearer | Поточний GC баланс                 |
+| GET   | `/wallet/coins/transactions?limit=` | Bearer | GC транзакції                      |
+| POST  | `/wallet/coins/convert`             | Bearer | GC → USD (`{ amount }`)            |
+| POST  | `/wallet/coins/buy`                 | Bearer | USD → GC (`{ usdAmount }`)         |
 
-Натисніть **Authorize** у Swagger UI та вставте `accessToken` (без префіксу `Bearer`).
+**Race condition:** кожна операція з балансом — `$transaction` + `SELECT ... FOR UPDATE` на рядку wallet. Конкурентні запити серіалізуються PostgreSQL.
 
-### Auth (`/auth`)
-
-| Метод  | Маршрут         | Guard   | Опис                                                        |
-| ------ | --------------- | ------- | ----------------------------------------------------------- |
-| `POST` | `/auth/login`   | —       | Логін (`email`, `password`) → `accessToken`, `refreshToken` |
-| `POST` | `/auth/refresh` | Refresh | Тіло: `{ "refreshToken": "..." }` → нові токени             |
-| `POST` | `/auth/logout`  | Bearer  | Stateless — завжди повертає 200                             |
-
-### Users (`/users`)
-
-| Метод    | Маршрут      | Guard  | Опис                                                |
-| -------- | ------------ | ------ | --------------------------------------------------- |
-| `POST`   | `/users`     | —      | Реєстрація (`username?`, `email`, `password`)       |
-| `GET`    | `/users/me`  | Bearer | Власний профіль з балансом, адресою                 |
-| `GET`    | `/users/:id` | Bearer | Публічний профіль: username, rating, level, country |
-| `PATCH`  | `/users/:id` | Bearer | Оновити username / email / password                 |
-| `DELETE` | `/users/:id` | Bearer | Soft delete акаунту (`isDeleted: true`)             |
-
-### Address (`/address`)
-
-| Метод   | Маршрут    | Guard  | Опис                                       |
-| ------- | ---------- | ------ | ------------------------------------------ |
-| `POST`  | `/address` | Bearer | Створити адресу (userId береться з токена) |
-| `PATCH` | `/address` | Bearer | Оновити адресу                             |
-
-### Admin (`/admin`)
-
-| Метод    | Маршрут                    | Guard | Опис                                                |
-| -------- | -------------------------- | ----- | --------------------------------------------------- |
-| `GET`    | `/admin/stats`             | Admin | Статистика: total, banned, deleted, new users       |
-| `GET`    | `/admin/users`             | Admin | Список усіх користувачів з профілями                |
-| `GET`    | `/admin/users/:id`         | Admin | Деталі користувача з адресою                        |
-| `PATCH`  | `/admin/users/:id/ban`     | Admin | Бан (`banEndAt?` — ISO date, без нього безстроково) |
-| `PATCH`  | `/admin/users/:id/unban`   | Admin | Розбан                                              |
-| `PATCH`  | `/admin/users/:id/role`    | Admin | Змінити роль (`USER` / `ADMIN`)                     |
-| `PATCH`  | `/admin/users/:id/profile` | Admin | Оновити rating / balance / level                    |
-| `DELETE` | `/admin/users/:id`         | Admin | Soft delete акаунту                                 |
-
-### Wallet (`/wallet`)
-
-| Метод  | Маршрут                       | Guard  | Опис                                                                           |
-| ------ | ----------------------------- | ------ | ------------------------------------------------------------------------------ |
-| `GET`  | `/wallet/me`                  | Bearer | Поточний баланс + 10 останніх транзакцій                                       |
-| `POST` | `/wallet/deposit`             | Bearer | Поповнення балансу. Тіло: `amount`, `idempotencyKey` (UUID v4), `description?` |
-| `GET`  | `/wallet/transactions?limit=` | Bearer | Повна історія транзакцій (максимум 100)                                        |
-
-#### Idempotency
-
-Поле `idempotencyKey` — UUID v4, який клієнт генерує **один раз** перед запитом і повторно використовує при будь-якому ретраї. Якщо сервер вже обробив цей ключ — повертає оригінальну транзакцію зі статусом `200` без повторного нарахування.
-
-#### Race condition
-
-Кожна операція з балансом виконується всередині `$transaction` із `SELECT ... FOR UPDATE` на рядку гаманця. Конкурентні запити від одного користувача серіалізуються на рівні PostgreSQL — неможливі ні ситуація "обидва бачать достатній баланс", ні подвійне списання.
+**Idempotency (USD-транзакції):** клієнт генерує UUID v4 один раз і повторно використовує при ретраях. Сервер повертає вже збережену транзакцію без повторного нарахування.
 
 ---
 
-### Stripe (`/stripe`)
+### Payments `/stripe` + `/payments`
 
-| Метод  | Маршрут           | Guard  | Опис                                                                                                                       |
-| ------ | ----------------- | ------ | -------------------------------------------------------------------------------------------------------------------------- |
-| `POST` | `/stripe/deposit` | Bearer | Створити PaymentIntent. Тіло: `{ "amount": 100 }` (монети). Повертає `id`, `client_secret`, `amount`, `currency`, `status` |
+| Метод | Маршрут                    | Guard  | Опис                                                                      |
+| ----- | -------------------------- | ------ | ------------------------------------------------------------------------- |
+| POST  | `/stripe/deposit`          | Bearer | Створити Stripe PaymentIntent. `{ amount }` — в монетах (×100 для Stripe) |
+| POST  | `/payments/webhook/stripe` | —      | Stripe webhook (`stripe-signature`), нарахування USD балансу              |
 
-> `amount` передається у монетах (копійках), сервер множить на 100 для Stripe (гроші → найменша одиниця валюти).
-
-### Payments webhook (`/payments`)
-
-| Метод  | Маршрут                    | Guard | Опис                                                           |
-| ------ | -------------------------- | ----- | -------------------------------------------------------------- |
-| `POST` | `/payments/webhook/stripe` | —     | Stripe webhook. Верифікує `stripe-signature`, нараховує баланс |
-
-> Цей маршрут використовує raw body (`Buffer`) для перевірки підпису Stripe. Клієнти не повинні викликати його напряму.
-
-#### Локальне тестування webhook
+Webhook використовує raw body (`Buffer`) для верифікації підпису. Обробляє подію `checkout.session.completed`.
 
 ```bash
-# Встановити Stripe CLI та увійти в акаунт
-stripe login
-
+# Локальне тестування webhook
 stripe listen --forward-to localhost:3300/payments/webhook/stripe
-
-# Вручну тригернути payment_intent.succeeded (з userId в metadata)
-stripe trigger payment_intent.succeeded \
-  --override payment_intent:metadata.userId=<id>
+stripe trigger checkout.session.completed
 ```
 
 ---
 
-### Roulette (`/roulette`)
+### Roulette `/roulette`
 
-| Метод    | Маршрут                    | Guard  | Опис                                                        |
-| -------- | -------------------------- | ------ | ----------------------------------------------------------- |
-| `POST`   | `/roulette/join`           | Bearer | Почати сесію → `{ id, serverHash, clientSeed, nonce }`      |
-| `POST`   | `/roulette/bet`            | Bearer | Зробити ставку → результат, виплата, оновлений баланс       |
-| `DELETE` | `/roulette/leave/:id`      | Bearer | Завершити сесію → розкриває `serverSeed`                    |
-| `GET`    | `/roulette/history?limit=` | Bearer | Історія ставок (за замовчуванням 20, максимум 100)          |
-| `POST`   | `/roulette/verify`         | —      | Верифікація результату: `serverSeed`, `clientSeed`, `nonce` |
+| Метод  | Маршрут                    | Guard  | Опис                                                      |
+| ------ | -------------------------- | ------ | --------------------------------------------------------- |
+| POST   | `/roulette/join`           | Bearer | Відкрити сесію → `{ id, serverHash, clientSeed, nonce }`  |
+| POST   | `/roulette/bet`            | Bearer | Поставити ставку → результат + оновлений баланс           |
+| DELETE | `/roulette/leave/:id`      | Bearer | Закрити сесію → розкриває `serverSeed`                    |
+| GET    | `/roulette/history?limit=` | Bearer | Історія ставок (макс. 100)                                |
+| POST   | `/roulette/verify`         | —      | Публічна верифікація: `{ serverSeed, clientSeed, nonce }` |
 
-#### Типи ставок
+**Виграш/програш:**
 
-| Тип        | `targetNumber`                       | Виплата |
-| ---------- | ------------------------------------ | ------- |
-| `STRAIGHT` | 0–36                                 | x36     |
-| `RED`      | —                                    | x2      |
-| `BLACK`    | —                                    | x2      |
-| `EVEN`     | —                                    | x2      |
-| `ODD`      | —                                    | x2      |
-| `DOZEN`    | `1` (1–12), `2` (13–24), `3` (25–36) | x3      |
+| Тип ставки      | `targetNumber`                 | Множник |
+| --------------- | ------------------------------ | ------- |
+| `STRAIGHT`      | 0–36                           | ×36     |
+| `RED` / `BLACK` | —                              | ×2      |
+| `EVEN` / `ODD`  | —                              | ×2      |
+| `DOZEN`         | 1 (1–12), 2 (13–24), 3 (25–36) | ×3      |
 
-> Нуль (0) програє всі ставки окрім `STRAIGHT` на 0.
+Виплата = `bet × multiplier`. Нуль (0) програє всі ставки, окрім `STRAIGHT` на 0. Списання та нарахування — в одній транзакції wallet.
+
+**Provably fair:** `winningNumber = HMAC-SHA256(serverSeed, clientSeed:nonce) % 37`. `serverHash = SHA256(serverSeed)` публікується до гри, `serverSeed` — після.
 
 ---
 
-## Змінні середовища (`.env`)
+### Slot `/slot`
+
+| Метод | Маршрут                | Guard  | Опис                                                     |
+| ----- | ---------------------- | ------ | -------------------------------------------------------- |
+| GET   | `/slot/session`        | Bearer | Отримати або створити сесію → `{ serverHash, nonce }`    |
+| POST  | `/slot/spin`           | Bearer | Спін `{ bet, clientSeed }` → результат + GC баланс       |
+| GET   | `/slot/history?limit=` | Bearer | Історія спінів                                           |
+| POST  | `/slot/verify`         | —      | Публічна верифікація `{ serverSeed, clientSeed, nonce }` |
+
+Ставки у **GC (Glow Coins)**. 3 барабани, 7 символів.
+
+**Виплати (множник × ставка):**
+
+| Комбінація        | LEMON | CHERRY | GRAPE | BELL | BAR | SEVEN | DIAMOND |
+| ----------------- | ----- | ------ | ----- | ---- | --- | ----- | ------- |
+| 3 однакових       | ×14   | ×16    | ×20   | ×30  | ×60 | ×100  | ×150    |
+| 2 однакових зліва | ×0.6  | ×0.8   | ×1.5  | ×2.5 | ×3  | ×6    | ×10     |
+
+**Provably fair:** `stop[i] = HMAC-SHA256(serverSeed, clientSeed:nonce)[i*4..i*4+3] % REEL_LENGTH`. Теоретичний RTP ~95.58%. Сесія в Redis (TTL 24 год), seed ротується після кожного спіну.
+
+---
+
+### Battle (WebSocket)
+
+Підключення: `ws://localhost:3300` (Socket.IO). JWT передається в `auth.token` при handshake.
+
+**WebSocket події:**
+
+| Подія (emit)    | Payload        | Відповідь (on)                 | Опис             |
+| --------------- | -------------- | ------------------------------ | ---------------- |
+| `queue:join`    | `{ weaponId }` | `match:found` / ack            | Вступити в чергу |
+| `queue:leave`   | —              | ack                            | Вийти з черги    |
+| `battle:attack` | —              | `battle:update` / `battle:end` | Атакувати        |
+
+**HTTP ендпоінти:**
+
+| Метод | Маршрут                  | Guard  | Опис                   |
+| ----- | ------------------------ | ------ | ---------------------- |
+| GET   | `/battle/history?limit=` | Bearer | Останні бої (макс. 50) |
+| GET   | `/battle/stats`          | Bearer | Wins / losses / streak |
+
+**Механіка бою:**
+
+- Обидва гравці починають з **100 HP**
+- Ушкодження за хід: `randomInt(weapon.minDamage, weapon.maxDamage)`
+- Перший хід — гравець з вищим рівнем (coin toss при рівних)
+- Бій закінчується коли HP ≤ 0
+- Стан зберігається в Redis, результат пишеться в PostgreSQL
+- **Нагорода:** кожні **6 перемог поспіль** → **+1 GC**
+
+---
+
+### Weapons `/weapons`
+
+| Метод | Маршрут              | Guard  | Опис                          |
+| ----- | -------------------- | ------ | ----------------------------- |
+| GET   | `/weapons`           | Bearer | Каталог усієї зброї           |
+| GET   | `/weapons/inventory` | Bearer | Власний інвентар              |
+| POST  | `/weapons/buy`       | Bearer | `{ weaponId }` — купити за GC |
+
+Покупка списує GC через `processCoinTransaction`. Повертає `409` якщо зброя вже куплена.
+
+---
+
+### Admin `/admin`
+
+Всі ендпоінти потребують `AdminGuard` (Bearer + `role === 'ADMIN'`).
+
+| Метод  | Маршрут                    | Опис                                           |
+| ------ | -------------------------- | ---------------------------------------------- |
+| GET    | `/admin/stats`             | Загальна статистика платформи                  |
+| GET    | `/admin/users`             | Список усіх користувачів                       |
+| GET    | `/admin/users/:id`         | Деталі + адреса                                |
+| PATCH  | `/admin/users/:id/ban`     | Бан (`banEndAt?` — безстроково якщо відсутній) |
+| PATCH  | `/admin/users/:id/unban`   | Розбан                                         |
+| PATCH  | `/admin/users/:id/role`    | Змінити роль (`USER` / `ADMIN`)                |
+| PATCH  | `/admin/users/:id/profile` | Оновити rating / balance / level               |
+| DELETE | `/admin/users/:id`         | Soft delete                                    |
+
+---
+
+### Address `/address`
+
+| Метод | Маршрут    | Guard  | Опис            |
+| ----- | ---------- | ------ | --------------- |
+| POST  | `/address` | Bearer | Створити адресу |
+| PATCH | `/address` | Bearer | Оновити адресу  |
+
+---
+
+### Health
+
+`GET /health` — публічний health check.
+
+---
+
+## Змінні середовища
 
 ```env
+NODE_ENV=development
 PORT=3300
 
 POSTGRES_DB=game-evoverse
 POSTGRES_USER=admin
-POSTGRES_PASSWORD=your_password
+POSTGRES_PASSWORD=your_db_password
 
-DATABASE_URL="postgresql://admin:your_password@localhost:5432/game-evoverse?schema=public"
+# Для Docker: хост = postgres; локально: localhost
+DATABASE_URL="postgresql://admin:your_db_password@postgres:5432/game-evoverse?schema=public"
 
-JWT_ACCESS_SECRET=your_access_secret
-JWT_REFRESH_SECRET=your_refresh_secret
+JWT_ACCESS_SECRET=your_jwt_access_secret
+JWT_REFRESH_SECRET=your_jwt_refresh_secret
 JWT_ACCESS_EXPIRES_IN=15m
 JWT_REFRESH_EXPIRES_IN=7d
 
-ADMIN_EMAIL=admin@evoverse.local
-ADMIN_PASSWORD=Admin1234!
+ADMIN_EMAIL=admin@evoverse.com
+ADMIN_PASSWORD=your_admin_password
+ADMIN_SECRET=your_admin_secret
 
-# Stripe (test mode)
+# CORS origin — підтримує кому-розділені URL для кількох середовищ
+FRONTEND_URL=http://localhost:3000
+
 STRIPE_API_KEY=sk_test_...
+STRIPE_RESTRICTED_KEY=rk_test_...
 STRIPE_WEBHOOK_SECRET=whsec_...
-```
 
-> `STRIPE_WEBHOOK_SECRET` — секрет, який виводить `stripe listen` при локальній розробці.
+# Для Docker: хост = redis
+REDIS_HOST=127.0.0.1
+REDIS_PORT=6379
+REDIS_PASSWORD=your_redis_password
+```
 
 ---
 
 ## Запуск
 
-### Локальна розробка
+### Локально
 
 ```bash
 git clone https://github.com/olyaprykhodko/evoverse
-cd evoverse && git checkout game-evoverse
-npm i
+cd evoverse
+npm install
 cp .env.example .env
-```
+# Відредагуй .env — DATABASE_URL хост = localhost, REDIS_HOST = 127.0.0.1
 
-> У файлі `.env` треба замінити всі плейсхолдери (`your_db_password`, `sk_test_...` тощо) реальними значеннями перед запуском.
+# Запустити PostgreSQL та Redis
+docker compose up postgres redis -d
 
-```bash
-
-# Запустити PostgreSQL (через Docker або локально)
-docker compose up postgres -d
-
-# Застосувати міграції та запустити seed
+# Міграції + seed (адмін-акаунт)
 npx prisma migrate dev
 npx prisma db seed
 
-# Сервер з hot-reload
-npm run start:local   # http://localhost:3300
+# Dev-сервер з hot-reload
+npm run start:dev
 ```
 
 ### Docker (повний стек)
 
 ```bash
+cp .env.example .env
+# Відредагуй .env — DATABASE_URL хост = postgres, REDIS_HOST = redis
+
 docker compose up --build -d
 ```
 
-Запускає два контейнери:
+Три контейнери:
 
-- `api` — NestJS сервер, автоматично виконує `prisma migrate deploy` при старті
-- `postgres` — PostgreSQL 17, api чекає на healthcheck перед стартом
+- **`api`** — NestJS, виконує `prisma migrate deploy` + seed при старті
+- **`postgres`** — PostgreSQL 17, volume `postgres_data`
+- **`redis`** — Redis 8 з AOF persistence, password-protected
 
-API доступне на `http://localhost:3300/`
+```bash
+# Перевірка
+curl http://localhost:3300/health
 
-> **Примітка:** при запуску поза Docker (локальна розробка) бекенд читає `.env` (через `import 'dotenv/config'` у `main.ts`), а не `.env.local`. Переконайтесь, що `DATABASE_URL` у `.env` вказує на `localhost:5432`, якщо PostgreSQL запущено через Docker без мережевого аліасу.
+# Swagger UI
+open http://localhost:3300/
+```
