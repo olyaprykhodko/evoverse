@@ -1,6 +1,8 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { WalletService } from '../wallet/wallet.service.js';
-import type { PaymentConfirmedEvent } from './stripe/stripe.service.js';
+import { PaymentConfirmedEvent } from './payments.types.js';
+
+export type { PaymentConfirmedEvent };
 
 @Injectable()
 export class PaymentsService {
@@ -14,10 +16,28 @@ export class PaymentsService {
         `userId=${event.userId} amount=${event.amount}`,
     );
 
-    await this.walletService.deposit(event.userId, {
-      amount: event.amount,
-      idempotencyKey: event.paymentId,
-      description: event.description,
-    });
+    try {
+      await this.walletService.deposit(event.userId, {
+        amount: event.amount,
+        idempotencyKey: event.paymentId,
+        description: event.description,
+      });
+      this.logger.log(
+        `Deposit $${event.amount} credited to user ${event.userId} (${event.provider} ${event.paymentId})`,
+      );
+    } catch (err: unknown) {
+      if (err instanceof NotFoundException) {
+        this.logger.error(
+          `Wallet not found for userId=${event.userId} (${event.provider} ${event.paymentId})`,
+        );
+        return;
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(
+        `Failed to deposit for user ${event.userId} (${event.provider} ${event.paymentId}): ${msg}`,
+        err,
+      );
+      throw err;
+    }
   }
 }

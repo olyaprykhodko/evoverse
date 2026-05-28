@@ -11,12 +11,12 @@ async function bootstrap() {
 
   app.useWebSocketAdapter(new IoAdapter(app));
 
-  app.use('/payments/webhook/stripe', raw({ type: 'application/json' }));
+  app.use('/stripe/webhook', raw({ type: 'application/json' }));
 
   app.use(json());
 
   app.enableCors({
-    origin: '*',
+    origin: process.env.FRONTEND_URL,
     methods: 'GET,POST,PUT, PATCH, DELETE',
     credentials: true,
     allowedHeaders: 'Content-Type, Authorization',

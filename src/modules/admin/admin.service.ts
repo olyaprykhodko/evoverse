@@ -1,4 +1,5 @@
 import {
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -33,7 +34,10 @@ export class AdminService {
           updatedAt: true,
           deletedAt: true,
           profile: {
-            select: { rating: true, avatar: true, level: true },
+            select: { rating: true, avatar: true },
+          },
+          wallet: {
+            select: { coins: true, balance: true },
           },
         },
       });
@@ -64,9 +68,7 @@ export class AdminService {
         profile: {
           select: {
             rating: true,
-            balance: true,
             avatar: true,
-            level: true,
             address: {
               select: {
                 firstName: true,
@@ -76,6 +78,9 @@ export class AdminService {
               },
             },
           },
+        },
+        wallet: {
+          select: { coins: true, balance: true },
         },
       },
     });
@@ -139,6 +144,11 @@ export class AdminService {
   async updateUserRole(id: number, dto: UpdateRoleDto) {
     await this.ensureUserExists(id);
 
+    const secret = process.env.ADMIN_SECRET;
+    if (!secret || dto.adminSecret !== secret) {
+      throw new ForbiddenException('Invalid admin secret');
+    }
+
     try {
       await this.prisma.users.update({
         where: { id },
@@ -153,7 +163,7 @@ export class AdminService {
   }
 
   async updateUserProfile(id: number, dto: UpdateProfileDto) {
-    const { rating, balance, level } = dto;
+    const { rating, level } = dto;
 
     const profile = await this.prisma.profiles.findFirst({
       where: { userId: id },
@@ -166,7 +176,6 @@ export class AdminService {
         where: { userId: id },
         data: {
           ...(rating !== undefined && { rating }),
-          ...(balance !== undefined && { balance }),
           ...(level !== undefined && { level }),
         },
       });

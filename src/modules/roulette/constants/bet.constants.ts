@@ -1,11 +1,4 @@
-export enum BetType {
-  STRAIGHT = 'STRAIGHT',
-  RED = 'RED',
-  BLACK = 'BLACK',
-  EVEN = 'EVEN',
-  ODD = 'ODD',
-  DOZEN = 'DOZEN',
-}
+import { BetType } from '../entities/bet-entities.js';
 
 export const PAYOUT_MULTIPLIERS: Record<BetType, number> = {
   [BetType.STRAIGHT]: 36,

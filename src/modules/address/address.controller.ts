@@ -23,21 +23,21 @@ import type { JwtPayload } from '../../strategies/jwt-access.strategy.js';
 export class AddressController {
   constructor(private readonly addressService: AddressService) {}
 
+  @Post() // create user address (name, phone, address etc)
   @ApiOperation({ summary: 'Create address for the authenticated user' })
   @ApiCreatedResponse({ description: 'Created – address saved' })
   @ApiConflictResponse({ description: 'Conflict – address already exists' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  @Post()
   create(@Req() req: Request, @Body() createAddressDto: CreateAddressDto) {
     const user = req.user as JwtPayload;
     return this.addressService.create(user.sub, createAddressDto);
   }
 
+  @Patch() // update user address
   @ApiOperation({ summary: 'Update address of the authenticated user' })
   @ApiOkResponse({ description: 'OK – address updated' })
   @ApiNotFoundResponse({ description: 'Not Found – address not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized' })
-  @Patch()
   update(@Req() req: Request, @Body() updateAddressDto: UpdateAddressDto) {
     const user = req.user as JwtPayload;
     return this.addressService.update(user.sub, updateAddressDto);

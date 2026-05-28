@@ -4,10 +4,9 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { Redis } from 'ioredis';
+import { REFRESH_TOKEN_TTL } from './constants/tokens.js';
 
 import * as crypto from 'node:crypto';
-
-const REFRESH_TOKEN_TTL = 60 * 60 * 24 * 7;
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {

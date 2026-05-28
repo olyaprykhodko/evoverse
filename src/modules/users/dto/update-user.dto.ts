@@ -30,4 +30,9 @@ export class UpdateUserDto {
     message: 'Password must contain uppercase, lowercase letters, and numbers',
   })
   password?: string;
+
+  @ApiPropertyOptional({ example: 'hero_1.png' })
+  @IsOptional()
+  @IsString()
+  avatar?: string;
 }

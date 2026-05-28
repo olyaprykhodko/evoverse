@@ -9,8 +9,12 @@ import { AdminModule } from './modules/admin/admin.module.js';
 import { RouletteModule } from './modules/roulette/roulette.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
 import { PaymentsModule } from './modules/payments/payments.module.js';
+import { StripeModule } from './modules/payments/stripe/stripe.module.js';
 import { RedisModule } from '../redis/redis.module.js';
 import { HealthModule } from './modules/health/health.module.js';
+import { WeaponsModule } from './modules/weapons/weapons.module.js';
+import { BattleModule } from './modules/battle/battle.module.js';
+import { SlotModule } from './modules/slot/slot.module.js';
 
 @Module({
   imports: [
@@ -23,8 +27,12 @@ import { HealthModule } from './modules/health/health.module.js';
     RouletteModule,
     WalletModule,
     PaymentsModule,
+    StripeModule,
     RedisModule,
     HealthModule,
+    WeaponsModule,
+    BattleModule,
+    SlotModule,
   ],
   controllers: [AppController],
   providers: [],

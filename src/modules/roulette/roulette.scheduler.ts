@@ -1,10 +1,12 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Interval } from '@nestjs/schedule';
+
 import { RedisService } from '../../../redis/redis.service.js';
 import { RouletteService } from './roulette.service.js';
 import { RouletteGateway } from './roulette.gateway.js';
 
-const ROOM_META_KEY = 'roulette:room:meta';
+import { TABLE_IDS } from './constants/room.constants.js';
+import { tableMetaKey } from './helpers/table-keys.helpers.js';
 
 @Injectable()
 export class RouletteScheduler {
@@ -18,19 +20,31 @@ export class RouletteScheduler {
 
   @Interval(1000)
   async tick(): Promise<void> {
+    await Promise.all(TABLE_IDS.map((id) => this.tickTable(id)));
+  }
+
+  private async tickTable(tableId: string): Promise<void> {
     const client = this.redis.getClient();
-    const ttl = await client.ttl(ROOM_META_KEY);
+    const metaKey = tableMetaKey(tableId);
+    let ttl = await client.ttl(metaKey);
 
-    if (ttl === -2) return;
+    if (ttl === -2) {
+      try {
+        await this.rouletteService.getRoomState(tableId);
+        ttl = await client.ttl(metaKey);
+      } catch {
+        return;
+      }
+    }
 
-    this.gateway.broadcastCountdown(ttl);
+    this.gateway.broadcastCountdown(tableId, ttl);
 
     if (ttl <= 1) {
-      this.logger.log('Betting window expired — triggering auto-spin');
+      this.logger.log(`Betting window expired on ${tableId} — auto-spin`);
       try {
-        await this.rouletteService.spinRoom();
+        await this.rouletteService.spinRoom(tableId);
       } catch (err) {
-        this.logger.warn('Auto-spin skipped or failed', err);
+        this.logger.warn(`Auto-spin skipped on ${tableId}`, err);
       }
     }
   }

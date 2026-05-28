@@ -19,16 +19,17 @@ import type { JwtPayload } from '../../strategies/jwt-access.strategy.js';
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Post('login') // login
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiOkResponse({ description: 'OK – returns access and refresh tokens' })
   @ApiUnauthorizedResponse({
     description: 'Unauthorized – invalid credentials or banned account',
   })
-  @Post('login')
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
   }
 
+  @Post('refresh') // refresh token
   @ApiOperation({
     summary: 'Refresh access token',
     description: 'Send `refreshToken` as a body field (not a Bearer header)',
@@ -47,19 +48,18 @@ export class AuthController {
     description: 'Unauthorized – invalid or expired refresh token',
   })
   @UseGuards(JwtRefreshGuard)
-  @Post('refresh')
   refresh(@Req() req: Request, @Body('refreshToken') refreshToken: string) {
     return this.authService.refresh(req.user as JwtPayload, refreshToken);
   }
 
+  @Post('logout') // invalidate session
   @ApiBearerAuth('JWT')
-  @ApiOperation({ summary: 'Logout (stateless – invalidate client-side)' })
+  @ApiOperation({ summary: 'Logout (invalidate session)' })
   @ApiOkResponse({ description: 'OK – logout successful' })
   @ApiUnauthorizedResponse({
     description: 'Unauthorized – missing or invalid token',
   })
   @UseGuards(JwtAccessGuard)
-  @Post('logout')
   logout(@Req() req: Request) {
     return this.authService.logout((req.user as JwtPayload).sub);
   }
