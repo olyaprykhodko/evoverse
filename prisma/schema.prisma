@@ -19,6 +19,7 @@ model Users {
   username    String?   @unique @map("username")
   password    String?   @map("password")
   email       String?   @unique @map("email")
+  googleId    String?   @unique @map("google_id")
   isBanned    Boolean   @default(false) @map("is_banned")
   isDeleted   Boolean   @default(false) @map("is_deleted")
   banEndAt    DateTime? @map("ban_end_at")

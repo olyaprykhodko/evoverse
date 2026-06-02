@@ -5,10 +5,16 @@ import { AuthController } from './auth.controller.js';
 import { AuthService } from './auth.service.js';
 import { JwtAccessStrategy } from '../../strategies/jwt-access.strategy.js';
 import { JwtRefreshStrategy } from '../../strategies/jwt-refresh.strategy.js';
+import { GoogleStrategy } from '../../strategies/google.strategy.js';
 
 @Module({
   imports: [PassportModule, JwtModule.register({})],
   controllers: [AuthController],
-  providers: [AuthService, JwtAccessStrategy, JwtRefreshStrategy],
+  providers: [
+    AuthService,
+    JwtAccessStrategy,
+    JwtRefreshStrategy,
+    GoogleStrategy,
+  ],
 })
 export class AuthModule {}
