@@ -12,6 +12,7 @@ import { LoginDto } from './dto/login.dto.js';
 import { sendResponse } from '../../common/utils/response.js';
 import type { JwtPayload } from '../../strategies/jwt-access.strategy.js';
 import * as argon2 from 'argon2';
+import { GoogleProfile } from '../../common/types/google.js';
 
 @Injectable()
 export class AuthService {
@@ -93,6 +94,82 @@ export class AuthService {
   async logout(userId: number) {
     await this.redisService.deleteSession(userId);
     return sendResponse('Logged out successfully', 200);
+  }
+
+  async validateGoogleUser(profile: GoogleProfile) {
+    const { googleId, email, displayName, avatar } = profile;
+
+    let user = await this.prisma.users.findFirst({
+      where: {
+        googleId,
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isBanned: true,
+      },
+    });
+
+    if (!user && email) {
+      const byEmail = await this.prisma.users.findFirst({
+        where: { email, isDeleted: false },
+        select: { id: true },
+      });
+      if (byEmail) {
+        user = await this.prisma.users.update({
+          where: { id: byEmail.id },
+          data: { googleId },
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            isBanned: true,
+            banEndAt: true,
+          },
+        });
+      }
+    }
+
+    if (!user) {
+      user = await this.prisma.users.create({
+        data: {
+          googleId,
+          email,
+          username: displayName,
+          profile: { create: { rating: 0, ...(avatar ? { avatar } : {}) } },
+          wallet: { create: {} },
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          isBanned: true,
+          banEndAt: true,
+        },
+      });
+    }
+
+    if (user.isBanned) {
+      throw new ForbiddenException(`Account is banned`);
+    }
+
+    const tokens = await this.generateTokens({
+      sub: user.id,
+      email: user.email!,
+      role: user.role,
+    });
+
+    await Promise.all([
+      this.prisma.users.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() },
+      }),
+      this.redisService.storeSession(user.id, tokens.refreshToken),
+    ]);
+
+    return sendResponse('Authenticated', 200, tokens);
   }
 
   private async generateTokens(payload: JwtPayload) {

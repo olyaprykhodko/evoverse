@@ -22,12 +22,20 @@ import {
   type BattleRound,
   type QueueEntry,
   type MatchResult,
+  type ZoneMove,
+  type ResolvedRound,
+  type SubmitMoveResult,
+  type Weapon,
 } from './entities/battle.entity.js';
 import {
   BATTLE_HP,
   COINS_PER_STREAK_MILESTONE,
   STREAK_MILESTONE,
   QUEUE_KEY,
+  ATTACK_ZONES,
+  MOVE_TIMEOUT_MS,
+  BLOCKED_DAMAGE_MULTIPLIER,
+  DEADLINES_KEY,
 } from './constants/battle.constants.js';
 
 @Injectable()
@@ -56,8 +64,8 @@ export class BattleService {
     const entry: QueueEntry = { userId, socketId, weaponId };
     await this.redis.getClient().rpush(QUEUE_KEY, JSON.stringify(entry));
 
-    const queueLen = await this.redis.getClient().llen(QUEUE_KEY);
-    if (queueLen >= 2) {
+    const queueLength = await this.redis.getClient().llen(QUEUE_KEY);
+    if (queueLength >= 2) {
       return await this.matchPlayers();
     }
     return null;
@@ -114,21 +122,24 @@ export class BattleService {
       },
     });
 
-    const firstTurn = Math.random() < 0.5 ? p1.userId : p2.userId;
     const battleId = battle.id;
+    const roundEndsAt = Date.now() + MOVE_TIMEOUT_MS;
 
     const key = stateKey(battleId);
     await this.redis.getClient().hset(key, {
       hp1: BATTLE_HP,
       hp2: BATTLE_HP,
-      currentTurnUserId: firstTurn,
       player1Id: p1.userId,
       player2Id: p2.userId,
       weapon1Id: p1.weaponId,
       weapon2Id: p2.weaponId,
       round: 1,
+      deadline: roundEndsAt,
     });
     await this.redis.getClient().expire(key, 3600);
+    await this.redis
+      .getClient()
+      .zadd(DEADLINES_KEY, roundEndsAt, this.deadlineMember(battleId, 1));
 
     return {
       battleId,
@@ -136,6 +147,7 @@ export class BattleService {
         socketId: p1.socketId,
         payload: {
           battleId,
+          player1Id: p1.userId,
           opponentId: p2.userId,
           opponentUsername: user2?.username ?? null,
           opponentAvatar: user2?.profile?.avatar ?? null,
@@ -146,13 +158,14 @@ export class BattleService {
             minDamage: Number(weapon2.minDamage),
             maxDamage: Number(weapon2.maxDamage),
           },
-          yourTurn: firstTurn === p1.userId,
+          roundEndsAt,
         },
       },
       p2: {
         socketId: p2.socketId,
         payload: {
           battleId,
+          player1Id: p1.userId,
           opponentId: p1.userId,
           opponentUsername: user1?.username ?? null,
           opponentAvatar: user1?.profile?.avatar ?? null,
@@ -163,80 +176,246 @@ export class BattleService {
             minDamage: Number(weapon1.minDamage),
             maxDamage: Number(weapon1.maxDamage),
           },
-          yourTurn: firstTurn === p2.userId,
+          roundEndsAt,
         },
       },
     };
   }
 
-  async processAttack(attackerUserId: number, battleId: string) {
+  async submitMove(
+    userId: number,
+    battleId: string,
+    move: ZoneMove,
+  ): Promise<SubmitMoveResult> {
+    this.validateMove(move);
+
+    return this.withLock(battleId, async (): Promise<SubmitMoveResult> => {
+      const client = this.redis.getClient();
+      const key = stateKey(battleId);
+      const state = await client.hgetall(key);
+
+      if (!state || !state['player1Id']) {
+        throw new NotFoundException('Battle not found or already finished');
+      }
+
+      const player1Id = Number(state['player1Id']);
+      const player2Id = Number(state['player2Id']);
+      if (userId !== player1Id && userId !== player2Id) {
+        throw new BadRequestException('You are not part of this battle');
+      }
+
+      const isP1 = userId === player1Id;
+      const myField = isP1 ? 'move1' : 'move2';
+      if (state[myField]) {
+        throw new BadRequestException('You have already moved this round');
+      }
+
+      await client.hset(key, { [myField]: JSON.stringify(move) });
+
+      const otherRaw = isP1 ? state['move2'] : state['move1'];
+      if (!otherRaw) {
+        return { status: 'waiting' as const };
+      }
+
+      const otherMove = JSON.parse(otherRaw) as ZoneMove;
+      const move1 = isP1 ? move : otherMove;
+      const move2 = isP1 ? otherMove : move;
+      return this.resolveRound(battleId, state, move1, move2);
+    });
+  }
+
+  async forceResolveRound(
+    battleId: string,
+    expectedRound: number,
+  ): Promise<ResolvedRound | null> {
+    return this.withLock(battleId, async (): Promise<ResolvedRound | null> => {
+      const client = this.redis.getClient();
+      const key = stateKey(battleId);
+      const state = await client.hgetall(key);
+
+      if (!state || !state['player1Id']) return null;
+      if (Number(state['round']) !== expectedRound) return null;
+
+      const idle: ZoneMove = { attackZone: null, defenseZone: null };
+      const move1 = state['move1']
+        ? (JSON.parse(state['move1']) as ZoneMove)
+        : idle;
+      const move2 = state['move2']
+        ? (JSON.parse(state['move2']) as ZoneMove)
+        : idle;
+
+      return this.resolveRound(battleId, state, move1, move2);
+    });
+  }
+
+  private async resolveRound(
+    battleId: string,
+    state: Record<string, string>,
+    move1: ZoneMove,
+    move2: ZoneMove,
+  ): Promise<ResolvedRound> {
+    const client = this.redis.getClient();
     const key = stateKey(battleId);
-    const state = await this.redis.getClient().hgetall(key);
-
-    if (!state || !state['currentTurnUserId']) {
-      throw new NotFoundException('Battle not found or already finished');
-    }
-
-    if (Number(state['currentTurnUserId']) !== attackerUserId) {
-      throw new BadRequestException('Not your turn');
-    }
-
     const player1Id = Number(state['player1Id']);
     const player2Id = Number(state['player2Id']);
-    const isAttackerP1 = attackerUserId === player1Id;
-    const defenderId = isAttackerP1 ? player2Id : player1Id;
-
-    const weaponId = isAttackerP1
-      ? Number(state['weapon1Id'])
-      : Number(state['weapon2Id']);
-    const weapon = await this.prisma.weapon.findUnique({
-      where: { id: weaponId },
-    });
-    if (!weapon) throw new NotFoundException('Weapon not found');
-
-    const damage = crypto.randomInt(
-      Number(weapon.minDamage),
-      Number(weapon.maxDamage) + 1,
-    );
-
-    let hp1 = Number(state['hp1']);
-    let hp2 = Number(state['hp2']);
     const round = Number(state['round']);
 
-    if (isAttackerP1) {
-      hp2 = Math.max(0, hp2 - damage);
-    } else {
-      hp1 = Math.max(0, hp1 - damage);
-    }
+    const [weapon1, weapon2] = await Promise.all([
+      this.prisma.weapon.findUnique({
+        where: { id: Number(state['weapon1Id']) },
+      }),
+      this.prisma.weapon.findUnique({
+        where: { id: Number(state['weapon2Id']) },
+      }),
+    ]);
+    if (!weapon1 || !weapon2) throw new NotFoundException('Weapon not found');
+
+    const damageTo2 = this.computeDamage(
+      weapon1,
+      move1.attackZone,
+      move2.defenseZone,
+    );
+    const damageTo1 = this.computeDamage(
+      weapon2,
+      move2.attackZone,
+      move1.defenseZone,
+    );
+
+    const raw1 = Number(state['hp1']) - damageTo1;
+    const raw2 = Number(state['hp2']) - damageTo2;
+    const hp1 = Math.max(0, raw1);
+    const hp2 = Math.max(0, raw2);
+
+    const bothIdle = !move1.attackZone && !move2.attackZone;
 
     const roundResult: BattleRound = {
       round,
-      attackerId: attackerUserId,
-      defenderId,
-      damage,
+      move1,
+      move2,
+      damageTo1,
+      damageTo2,
       hp1After: hp1,
       hp2After: hp2,
     };
 
-    const isFinished = hp1 <= 0 || hp2 <= 0;
+    const prevRounds = state['rounds']
+      ? (JSON.parse(state['rounds']) as BattleRound[])
+      : [];
+    const allRounds = [...prevRounds, roundResult];
 
-    if (isFinished) {
-      await this.redis.getClient().del(key);
-      const winnerId = hp1 > 0 ? player1Id : player2Id;
+    await client.zrem(DEADLINES_KEY, this.deadlineMember(battleId, round));
+
+    const finished = hp1 <= 0 || hp2 <= 0 || bothIdle;
+    if (finished) {
+      await client.del(key);
+
+      const winnerId = raw1 >= raw2 ? player1Id : player2Id;
       const loserId = winnerId === player1Id ? player2Id : player1Id;
-      await this.finishBattle(battleId, winnerId, loserId, [roundResult]);
-      return { roundResult, finished: true, winnerId };
+      await this.finishBattle(battleId, winnerId, loserId, allRounds);
+      return {
+        status: 'resolved',
+        round: roundResult,
+        finished: true,
+        winnerId,
+      };
     }
 
-    const nextTurn = isAttackerP1 ? player2Id : player1Id;
-    await this.redis.getClient().hset(key, {
+    const nextRound = round + 1;
+    const roundEndsAt = Date.now() + MOVE_TIMEOUT_MS;
+    await client.hset(key, {
       hp1,
       hp2,
-      currentTurnUserId: nextTurn,
-      round: round + 1,
+      round: nextRound,
+      rounds: JSON.stringify(allRounds),
+      deadline: roundEndsAt,
     });
+    await client.hdel(key, 'move1', 'move2');
+    await client.expire(key, 3600);
+    await client.zadd(
+      DEADLINES_KEY,
+      roundEndsAt,
+      this.deadlineMember(battleId, nextRound),
+    );
 
-    return { roundResult, finished: false, nextTurnUserId: nextTurn };
+    return {
+      status: 'resolved',
+      round: roundResult,
+      finished: false,
+      nextRound,
+      roundEndsAt,
+    };
+  }
+
+  private computeDamage(
+    weapon: Weapon,
+    attackZone: ZoneMove['attackZone'],
+    defenseZone: ZoneMove['defenseZone'],
+  ): number {
+    if (!attackZone) return 0;
+    const damage = crypto.randomInt(
+      Number(weapon.minDamage),
+      Number(weapon.maxDamage) + 1,
+    );
+    return defenseZone === attackZone
+      ? Math.round(damage * BLOCKED_DAMAGE_MULTIPLIER)
+      : damage;
+  }
+
+  private validateMove(move: ZoneMove): void {
+    const zones = ATTACK_ZONES as readonly string[];
+    if (
+      !move ||
+      !zones.includes(move.attackZone as string) ||
+      !zones.includes(move.defenseZone as string)
+    ) {
+      throw new BadRequestException(
+        'Invalid move: attackZone and defenseZone must be head, body or legs',
+      );
+    }
+  }
+
+  private deadlineMember(battleId: string, round: number): string {
+    return `${battleId}:${round}`;
+  }
+
+  async claimDueRounds(
+    now: number = Date.now(),
+  ): Promise<{ battleId: string; round: number }[]> {
+    const client = this.redis.getClient();
+    const due = await client.zrangebyscore(DEADLINES_KEY, '-inf', now);
+
+    const claimed: { battleId: string; round: number }[] = [];
+    for (const member of due) {
+      const removed = await client.zrem(DEADLINES_KEY, member);
+      if (removed !== 1) continue;
+      const sep = member.lastIndexOf(':');
+      claimed.push({
+        battleId: member.slice(0, sep),
+        round: Number(member.slice(sep + 1)),
+      });
+    }
+    return claimed;
+  }
+
+  private readonly chains = new Map<string, Promise<void>>();
+
+  private async withLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+    const prev = this.chains.get(key) ?? Promise.resolve();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    const mine = prev.then(
+      () => gate,
+      () => gate,
+    );
+    this.chains.set(key, mine);
+
+    await prev.catch(() => {});
+    try {
+      return await fn();
+    } finally {
+      release();
+      if (this.chains.get(key) === mine) this.chains.delete(key);
+    }
   }
 
   private async finishBattle(
@@ -343,7 +522,15 @@ export class BattleService {
 
     const battleId = battle.id;
     const key = stateKey(battleId);
+    const roundRaw = await this.redis.getClient().hget(key, 'round');
+    const round = Number(roundRaw ?? 0);
     await this.redis.getClient().del(key);
+    this.chains.delete(battleId);
+    if (round > 0) {
+      await this.redis
+        .getClient()
+        .zrem(DEADLINES_KEY, this.deadlineMember(battleId, round));
+    }
 
     await this.prisma.battleSession.update({
       where: { id: battleId },

@@ -20,6 +20,7 @@ import type { Request } from 'express';
 import { JwtAccessGuard } from '../../guards/jwt-access.guard.js';
 import { WalletService } from './wallet.service.js';
 import { ConvertCoinsDto } from './dto/convert-coins.dto.js';
+import { BuyCoinsDto } from './dto/buy-coins.dto.js';
 
 @ApiTags('Wallet')
 @ApiBearerAuth('JWT')
@@ -124,8 +125,8 @@ export class WalletController {
   })
   @ApiResponse({ status: 200, description: 'Glow Coins purchased.' })
   @ApiResponse({ status: 400, description: 'Insufficient USD balance.' })
-  buyCoins(@Req() req: Request, @Body() body: { usdAmount: number }) {
+  buyCoins(@Req() req: Request, @Body() dto: BuyCoinsDto) {
     const user = req.user as { sub: number };
-    return this.walletService.buyGlowCoins(user.sub, body.usdAmount);
+    return this.walletService.buyGlowCoins(user.sub, dto.amount);
   }
 }

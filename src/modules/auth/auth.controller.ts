@@ -1,5 +1,13 @@
-import { Controller, Post, Body, UseGuards, Req } from '@nestjs/common';
-import type { Request } from 'express';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  Req,
+  Res,
+} from '@nestjs/common';
+import type { Request, Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -13,11 +21,32 @@ import { LoginDto } from './dto/login.dto.js';
 import { JwtRefreshGuard } from '../../guards/jwt-refresh.guard.js';
 import { JwtAccessGuard } from '../../guards/jwt-access.guard.js';
 import type { JwtPayload } from '../../strategies/jwt-access.strategy.js';
+import { GoogleAuthGuard } from '../../guards/google.guard.js';
+import { GoogleProfile } from '../../common/types/google.js';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Get('google') // google oauth
+  @ApiOperation({ summary: 'Authentication via Google OAuth' })
+  @UseGuards(GoogleAuthGuard)
+  googleAuth() {}
+
+  @Get('google/callback') // google oauth callback
+  @ApiOperation({ summary: 'Google OAuth callback' })
+  @UseGuards(GoogleAuthGuard)
+  async googleCallback(@Req() req: Request, @Res() res: Response) {
+    const response = await this.authService.validateGoogleUser(
+      req.user as GoogleProfile,
+    );
+
+    const url = new URL(process.env.FRONTEND_OAUTH_REDIRECT!);
+    url.searchParams.set('accessToken', response.data!.accessToken);
+    url.searchParams.set('refreshToken', response.data!.refreshToken);
+    return res.redirect(url.toString());
+  }
 
   @Post('login') // login
   @ApiOperation({ summary: 'Login with email and password' })
