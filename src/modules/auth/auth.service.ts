@@ -138,7 +138,8 @@ export class AuthService {
           googleId,
           email,
           username: displayName,
-          profile: avatar ? { create: { avatar } } : undefined,
+          profile: { create: { rating: 0, ...(avatar ? { avatar } : {}) } },
+          wallet: { create: {} },
         },
         select: {
           id: true,
