@@ -20,6 +20,7 @@ model Users {
   password    String?   @map("password")
   email       String?   @unique @map("email")
   googleId    String?   @unique @map("google_id")
+  discordId   String?   @unique @map("discord_id")
   isBanned    Boolean   @default(false) @map("is_banned")
   isDeleted   Boolean   @default(false) @map("is_deleted")
   banEndAt    DateTime? @map("ban_end_at")

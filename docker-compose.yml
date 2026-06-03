@@ -7,6 +7,8 @@ services:
       - ${PORT}:${PORT}
     env_file:
       - .env
+    volumes:
+      - ./prisma:/app/prisma
     depends_on:
       postgres:
         condition: service_healthy
