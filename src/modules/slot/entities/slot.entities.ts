@@ -7,13 +7,13 @@ export interface SlotSession {
 }
 
 export interface LineWin {
-  line: number; // 1-based payline id (index into PAYLINES + 1)
-  symbol: SlotSymbol; // winning symbol (never WILD)
-  count: number; // matched symbols in a row, left to right (3..5)
-  multiplier: number; // paytable multiplier for this line
+  line: number;
+  symbol: SlotSymbol;
+  count: number;
+  multiplier: number;
 }
 
 export interface SpinEvaluation {
   wins: LineWin[];
-  totalMultiplier: number; // sum of all line multipliers
+  totalMultiplier: number;
 }

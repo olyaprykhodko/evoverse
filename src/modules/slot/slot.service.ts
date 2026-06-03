@@ -31,7 +31,11 @@ import {
   SLOT_SESSION_TTL,
   SlotSymbol,
 } from './slot.constants.js';
-import { SlotSession, SpinEvaluation, LineWin } from './entities/slot.entities.js';
+import {
+  SlotSession,
+  SpinEvaluation,
+  LineWin,
+} from './entities/slot.entities.js';
 
 @Injectable()
 export class SlotService {
@@ -85,7 +89,6 @@ export class SlotService {
     const grid = this.buildGrid(stops);
     const { wins, totalMultiplier } = this.evaluateSpin(grid);
 
-    // Total bet is split evenly across all paylines (betPerLine = bet / LINE_COUNT).
     const payoutAmount = Math.floor(
       (dto.bet / LINE_COUNT) * totalMultiplier * SCALING_FACTOR,
     );
@@ -121,7 +124,7 @@ export class SlotService {
           clientSeed: dto.clientSeed,
           nonce,
           stops,
-          grid: grid as unknown as runtime.InputJsonValue,
+          grid,
           wins: wins as unknown as runtime.InputJsonValue,
           betAmount: dto.bet,
           payoutAmount,
@@ -203,7 +206,6 @@ export class SlotService {
     });
   }
 
-  /** Derive REEL_COUNT independent stop positions from the provably-fair seed. */
   private computeStops(
     serverSeed: string,
     clientSeed: string,
@@ -211,7 +213,7 @@ export class SlotService {
   ): number[] {
     const hmac = crypto.createHmac('sha256', serverSeed);
     hmac.update(`${clientSeed}:${nonce}`);
-    const hex = hmac.digest('hex'); // 64 hex chars — 8 per reel covers 5 reels
+    const hex = hmac.digest('hex');
     const stops: number[] = [];
     for (let reel = 0; reel < REEL_COUNT; reel++) {
       const slice = hex.slice(reel * 8, reel * 8 + 8);
@@ -220,7 +222,6 @@ export class SlotService {
     return stops;
   }
 
-  /** Build the visible grid[reel][row] (REEL_COUNT × ROW_COUNT). */
   private buildGrid(stops: number[]): SlotSymbol[][] {
     return stops.map((stop, reel) => {
       const strip = REELS[reel];
@@ -232,7 +233,6 @@ export class SlotService {
     });
   }
 
-  /** Evaluate every payline left-to-right and sum the winning multipliers. */
   private evaluateSpin(grid: SlotSymbol[][]): SpinEvaluation {
     const wins: LineWin[] = [];
     let totalMultiplier = 0;
@@ -252,11 +252,6 @@ export class SlotService {
     return { wins, totalMultiplier };
   }
 
-  /**
-   * Count matching symbols from the left. WILD substitutes for any symbol;
-   * leading WILDs adopt the first non-WILD symbol as the target. A line of
-   * only WILDs returns no payable symbol (handled by caller as no win).
-   */
   private evaluateLine(symbols: SlotSymbol[]): {
     count: number;
     symbol: Exclude<SlotSymbol, SlotSymbol.WILD> | null;
@@ -275,10 +270,9 @@ export class SlotService {
       if (s === target || s === SlotSymbol.WILD) count++;
       else break;
     }
-    return { count, symbol: target as Exclude<SlotSymbol, SlotSymbol.WILD> };
+    return { count, symbol: target };
   }
 
-  /** Human-readable summary of the best (highest multiplier) line. */
   private summarizeWin(wins: LineWin[]): string | null {
     if (wins.length === 0) return null;
     const best = wins.reduce((a, b) => (b.multiplier > a.multiplier ? b : a));
