@@ -40,6 +40,7 @@ model Users {
   battlesAsP2  BattleSession[] @relation("player2_battles")
   battleStats  BattleStats?
   slotSpins    SlotSpin[]
+  chatMessages ChatMessage[]
 
   @@index([username])
   @@index([email])
@@ -303,4 +304,18 @@ model BattleStats {
   user Users @relation(fields: [userId], references: [id])
 
   @@map("battle_stats")
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  userId    Int      @map("user_id")
+  room      String   @default("global") @map("room")
+  content   String   @map("content")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user Users @relation(fields: [userId], references: [id])
+
+  @@index([room, createdAt])
+  @@index([userId])
+  @@map("chat_message")
 }
