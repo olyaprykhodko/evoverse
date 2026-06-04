@@ -41,7 +41,6 @@ model Users {
   battlesAsP2  BattleSession[] @relation("player2_battles")
   battleStats  BattleStats?
   slotSpins    SlotSpin[]
-  chatMessages ChatMessage[]
 
   @@index([username])
   @@index([email])
@@ -79,9 +78,9 @@ model Addresses {
   city        String   @map("city")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
-  
-  user        Users    @relation(fields: [userId], references: [id], map: "address_user_id_fkey")
-  profile     Profiles @relation(fields: [userId], references: [userId], map: "address_profile_user_id_fkey")
+
+  user    Users    @relation(fields: [userId], references: [id], map: "address_user_id_fkey")
+  profile Profiles @relation(fields: [userId], references: [userId], map: "address_profile_user_id_fkey")
 
   @@index([country])
   @@index([city])
@@ -129,9 +128,9 @@ model RouletteBet {
 }
 
 enum TransactionType {
-  DEPOSIT   
-  WITHDRAWAL 
-  PAYOUT    
+  DEPOSIT
+  WITHDRAWAL
+  PAYOUT
 
   @@map("transaction_type")
 }
@@ -139,13 +138,13 @@ enum TransactionType {
 model Wallet {
   id        String   @id @default(uuid())
   userId    Int      @unique @map("user_id")
-  balance   Decimal  @default(0) @db.Decimal(18, 6) @map("balance")
+  balance   Decimal  @default(0) @map("balance") @db.Decimal(18, 6)
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
 
-  user         Users               @relation(fields: [userId], references: [id])
-  transactions WalletTransaction[]
-  coins        Int                 @default(0) @map("coins")
+  user             Users               @relation(fields: [userId], references: [id])
+  transactions     WalletTransaction[]
+  coins            Int                 @default(0) @map("coins")
   coinTransactions CoinTransaction[]
 
   @@map("wallet")
@@ -155,9 +154,9 @@ model WalletTransaction {
   id             String          @id @default(uuid())
   walletId       String          @map("wallet_id")
   type           TransactionType @map("type")
-  amount         Decimal         @db.Decimal(18, 6) @map("amount")
-  balanceBefore  Decimal         @db.Decimal(18, 6) @map("balance_before")
-  balanceAfter   Decimal         @db.Decimal(18, 6) @map("balance_after")
+  amount         Decimal         @map("amount") @db.Decimal(18, 6)
+  balanceBefore  Decimal         @map("balance_before") @db.Decimal(18, 6)
+  balanceAfter   Decimal         @map("balance_after") @db.Decimal(18, 6)
   idempotencyKey String          @unique @map("idempotency_key")
   description    String?         @map("description")
   referenceId    String?         @map("reference_id")
@@ -218,9 +217,9 @@ model Weapon {
   rarity    WeaponRarity @map("rarity")
   createdAt DateTime     @default(now()) @map("created_at")
 
-  userWeapons  UserWeapon[]
-  battlesAsW1  BattleSession[] @relation("weapon1_battles")
-  battlesAsW2  BattleSession[] @relation("weapon2_battles")
+  userWeapons UserWeapon[]
+  battlesAsW1 BattleSession[] @relation("weapon1_battles")
+  battlesAsW2 BattleSession[] @relation("weapon2_battles")
 
   @@map("weapon")
 }
@@ -238,7 +237,6 @@ model UserWeapon {
   @@index([userId])
   @@map("user_weapon")
 }
-
 
 enum BattleStatus {
   WAITING
@@ -305,18 +303,4 @@ model BattleStats {
   user Users @relation(fields: [userId], references: [id])
 
   @@map("battle_stats")
-}
-
-model ChatMessage {
-  id        String   @id @default(uuid())
-  userId    Int      @map("user_id")
-  room      String   @default("global") @map("room")
-  content   String   @map("content")
-  createdAt DateTime @default(now()) @map("created_at")
-
-  user Users @relation(fields: [userId], references: [id])
-
-  @@index([room, createdAt])
-  @@index([userId])
-  @@map("chat_message")
 }

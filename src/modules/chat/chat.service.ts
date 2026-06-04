@@ -1,25 +1,20 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 
 import { PrismaService } from '../../../prisma/prisma.service.js';
 import { RedisService } from '../../../redis/redis.service.js';
 
-export const GLOBAL_ROOM = 'global';
-
-const HISTORY_LIMIT = 50;
-const RATE_LIMIT_WINDOW_SEC = 5;
-const RATE_LIMIT_MAX = 5;
-
-export interface ChatMessageView {
-  id: string;
-  room: string;
-  content: string;
-  createdAt: Date;
-  user: {
-    id: number;
-    username: string | null;
-    avatar: string | null;
-  };
-}
+import {
+  type ChatAuthor,
+  type ChatMessageView,
+} from './entities/chat.entity.js';
+import {
+  GLOBAL_ROOM,
+  roomKey,
+  HISTORY_LIMIT,
+  RATE_LIMIT_MAX,
+  RATE_LIMIT_WINDOW_SEC,
+} from './constants/chat.constants.js';
 
 @Injectable()
 export class ChatService {
@@ -28,44 +23,45 @@ export class ChatService {
     private readonly redis: RedisService,
   ) {}
 
-  async getHistory(room = GLOBAL_ROOM): Promise<ChatMessageView[]> {
-    const rows = await this.prisma.chatMessage.findMany({
-      where: { room },
-      orderBy: { createdAt: 'desc' },
-      take: HISTORY_LIMIT,
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            profile: { select: { avatar: true } },
-          },
-        },
-      },
+  async resolveAuthor(userId: number): Promise<ChatAuthor> {
+    const user = await this.prisma.users.findUnique({
+      where: { id: userId },
+      select: { username: true, profile: { select: { avatar: true } } },
     });
 
-    return rows.reverse().map((m) => this.toView(m));
+    return {
+      id: userId,
+      username: user?.username ?? null,
+      avatar: user?.profile?.avatar ?? null,
+    };
+  }
+
+  async getHistory(room = GLOBAL_ROOM): Promise<ChatMessageView[]> {
+    const raw = await this.redis.getClient().lrange(roomKey(room), 0, -1);
+    return raw
+      .map((entry) => this.parse(entry))
+      .filter((m): m is ChatMessageView => m !== null);
   }
 
   async saveMessage(
-    userId: number,
+    author: ChatAuthor,
     content: string,
     room = GLOBAL_ROOM,
   ): Promise<ChatMessageView> {
-    const created = await this.prisma.chatMessage.create({
-      data: { userId, room, content },
-      include: {
-        user: {
-          select: {
-            id: true,
-            username: true,
-            profile: { select: { avatar: true } },
-          },
-        },
-      },
-    });
+    const message: ChatMessageView = {
+      id: randomUUID(),
+      room,
+      content,
+      createdAt: new Date().toISOString(),
+      user: author,
+    };
 
-    return this.toView(created);
+    const client = this.redis.getClient();
+    const key = roomKey(room);
+    await client.rpush(key, JSON.stringify(message));
+    await client.ltrim(key, -HISTORY_LIMIT, -1);
+
+    return message;
   }
 
   async withinRateLimit(userId: number): Promise<boolean> {
@@ -76,27 +72,11 @@ export class ChatService {
     return count <= RATE_LIMIT_MAX;
   }
 
-  private toView(row: {
-    id: string;
-    room: string;
-    content: string;
-    createdAt: Date;
-    user: {
-      id: number;
-      username: string | null;
-      profile: { avatar: string | null } | null;
-    };
-  }): ChatMessageView {
-    return {
-      id: row.id,
-      room: row.room,
-      content: row.content,
-      createdAt: row.createdAt,
-      user: {
-        id: row.user.id,
-        username: row.user.username,
-        avatar: row.user.profile?.avatar ?? null,
-      },
-    };
+  private parse(entry: string): ChatMessageView | null {
+    try {
+      return JSON.parse(entry) as ChatMessageView;
+    } catch {
+      return null;
+    }
   }
 }

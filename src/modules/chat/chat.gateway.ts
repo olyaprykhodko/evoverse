@@ -14,7 +14,10 @@ import { JwtService } from '@nestjs/jwt';
 
 import { WsJwtGuard } from '../../guards/ws-jwt.guard.js';
 import type { JwtPayload } from '../../strategies/jwt-access.strategy.js';
-import { ChatService, GLOBAL_ROOM } from './chat.service.js';
+
+import { ChatService } from './chat.service.js';
+import { GLOBAL_ROOM } from './constants/chat.constants.js';
+import { type ChatAuthor } from './entities/chat.entity.js';
 import { SendMessageDto } from './dto/send-message.dto.js';
 
 @WebSocketGateway({ namespace: '/chat', cors: { origin: '*' } })
@@ -43,6 +46,8 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
       client.data['user'] = payload;
 
+      client.data['author'] = await this.chatService.resolveAuthor(payload.sub);
+
       await client.join(GLOBAL_ROOM);
 
       const history = await this.chatService.getHistory(GLOBAL_ROOM);
@@ -64,14 +69,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() dto: SendMessageDto,
   ): Promise<void> {
-    const user = client.data['user'] as JwtPayload;
+    const author = client.data['author'] as ChatAuthor;
 
-    const allowed = await this.chatService.withinRateLimit(user.sub);
+    const allowed = await this.chatService.withinRateLimit(author.id);
     if (!allowed) {
-      throw new WsException('You are sending messages too fast — slow down.');
+      throw new WsException('Too many requests. Try in 5 seconds.');
     }
 
-    const message = await this.chatService.saveMessage(user.sub, dto.content);
+    const message = await this.chatService.saveMessage(author, dto.content);
     this.server.to(GLOBAL_ROOM).emit('chat:message', message);
   }
 
