@@ -1,6 +1,6 @@
 # GlowVerse Game Platform Backend API
 
-REST + WebSocket API для iGaming платформи GlowVerse. Включає реєстрацію, JWT-авторизацію, рулетку, слоти, PvP-бої, магазин зброї, гаманець USD/GC та інтеграцію зі Stripe.
+REST + WebSocket API для iGaming платформи GlowVerse. Включає реєстрацію, JWT-авторизацію, OAuth (Google / Discord), рулетку, слоти, PvP-бої, глобальний чат, магазин зброї, гаманець USD/GC та інтеграцію зі Stripe.
 
 **Web App (Dev):** [https://dev.evoverse.dpdns.org](https://dev.evoverse.dpdns.org), **API (Dev):** [https://api-dev.evoverse.dpdns.org](https://api-dev.evoverse.dpdns.org)
 
@@ -27,13 +27,19 @@ REST + WebSocket API для iGaming платформи GlowVerse. Включає
 
 ### Auth `/auth`
 
-| Метод | Маршрут         | Guard   | Опис                                             |
-| ----- | --------------- | ------- | ------------------------------------------------ |
-| POST  | `/auth/login`   | —       | email + password → `accessToken`, `refreshToken` |
-| POST  | `/auth/refresh` | Refresh | `{ refreshToken }` в body → нові токени          |
-| POST  | `/auth/logout`  | Bearer  | Інвалідація сесії в Redis                        |
+| Метод | Маршрут                 | Guard   | Опис                                             |
+| ----- | ----------------------- | ------- | ------------------------------------------------ |
+| POST  | `/auth/login`           | —       | email + password → `accessToken`, `refreshToken` |
+| POST  | `/auth/refresh`         | Refresh | `{ refreshToken }` в body → нові токени          |
+| POST  | `/auth/logout`          | Bearer  | Інвалідація сесії в Redis                        |
+| GET   | `/auth/google`          | Google  | Старт Google OAuth (редірект на Google)          |
+| GET   | `/auth/google/callback` | Google  | Callback → редірект на фронт із токенами         |
+| GET   | `/auth/discord`         | Discord | Старт Discord OAuth (редірект на Discord)        |
+| GET   | `/auth/discord/callback`| Discord | Callback → редірект на фронт із токенами         |
 
 Access-токен живе 15 хв, refresh — 7 днів. Refresh-токен зберігається в Redis; logout видаляє запис.
+
+**OAuth (Google / Discord):** користувач відкриває `/auth/google` (або `/auth/discord`), проходить згоду в провайдера, після чого callback створює (або знаходить за `googleId` / email) акаунт із гаманцем і **редіректить на `FRONTEND_OAUTH_REDIRECT`**, передаючи `accessToken` та `refreshToken` у query-параметрах. Фронт зчитує токени з URL і завершує вхід.
 
 ---
 
@@ -112,23 +118,36 @@ stripe trigger checkout.session.completed
 
 ### Slot `/slot`
 
-| Метод | Маршрут                | Guard  | Опис                                                     |
-| ----- | ---------------------- | ------ | -------------------------------------------------------- |
-| GET   | `/slot/session`        | Bearer | Отримати або створити сесію → `{ serverHash, nonce }`    |
-| POST  | `/slot/spin`           | Bearer | Спін `{ bet, clientSeed }` → результат + GC баланс       |
-| GET   | `/slot/history?limit=` | Bearer | Історія спінів                                           |
-| POST  | `/slot/verify`         | —      | Публічна верифікація `{ serverSeed, clientSeed, nonce }` |
+| Метод | Маршрут                | Guard  | Опис                                                         |
+| ----- | ---------------------- | ------ | ------------------------------------------------------------ |
+| GET   | `/slot/session`        | Bearer | Отримати або створити сесію → `{ serverHash, nonce }`        |
+| POST  | `/slot/spin`           | Bearer | Спін `{ bet, clientSeed }` → грід + лінії + GC баланс        |
+| GET   | `/slot/history?limit=` | Bearer | Історія спінів                                               |
+| POST  | `/slot/verify`         | —      | Публічна верифікація `{ serverSeed, clientSeed, nonce }`     |
 
-Ставки у **GC (Glow Coins)**. 3 барабани, 7 символів.
+Ставки у **GC (Glow Coins)**. **5 барабанів × 3 ряди**, 8 символів (7 звичайних + `WILD`), **5 ліній виплат**. Фіксовані стрічки (32 позиції на барабан) → детермінований RTP ≈ **95%** (виміряно симулятором `scripts/slot-sim.mjs`).
 
-**Виплати (множник × ставка):**
+**Лінії виплат** (рядок на кожен барабан; 0 = верх, 1 = центр, 2 = низ):
 
-| Комбінація        | LEMON | CHERRY | GRAPE | BELL | BAR | SEVEN | DIAMOND |
-| ----------------- | ----- | ------ | ----- | ---- | --- | ----- | ------- |
-| 3 однакових       | ×14   | ×16    | ×20   | ×30  | ×60 | ×100  | ×150    |
-| 2 однакових зліва | ×0.6  | ×0.8   | ×1.5  | ×2.5 | ×3  | ×6    | ×10     |
+| #   | Лінія        | Патерн        |
+| --- | ------------ | ------------- |
+| 1   | центр        | `[1,1,1,1,1]` |
+| 2   | верхня       | `[0,0,0,0,0]` |
+| 3   | нижня        | `[2,2,2,2,2]` |
+| 4   | трикутник    | `[2,1,0,1,2]` |
+| 5   | перевернутий | `[0,1,2,1,0]` |
 
-**Provably fair:** `stop[i] = HMAC-SHA256(serverSeed, clientSeed:nonce)[i*4..i*4+3] % REEL_LENGTH`. Теоретичний RTP ~95.58%. Сесія в Redis (TTL 24 год), seed ротується після кожного спіну.
+**Виплати** (множник на ставку-на-лінію, збіги **зліва направо**):
+
+| Збігів | LEMON | CHERRY | GRAPE | BELL | BAR  | SEVEN | DIAMOND |
+| ------ | ----- | ------ | ----- | ---- | ---- | ----- | ------- |
+| 3      | ×6    | ×8     | ×12   | ×18  | ×25  | ×45   | ×90     |
+| 4      | ×15   | ×25    | ×40   | ×60  | ×90  | ×180  | ×450    |
+| 5      | ×45   | ×75    | ×120  | ×240 | ×360 | ×750  | ×1800   |
+
+`WILD` замінює будь-який символ (власної виплати не має). Ставка ділиться порівну між 5 лініями: **виплата лінії = (bet ÷ 5) × множник**, а виграші всіх ліній **підсумовуються** за спін.
+
+**Provably fair:** для кожного з 5 барабанів `stop[i] = HMAC-SHA256(serverSeed, clientSeed:nonce)[i*8..i*8+7] % REEL_LENGTH`. `serverHash = SHA256(serverSeed)` публікується до спіну, `serverSeed` — після. Сесія в Redis (TTL 24 год), seed ротується після кожного спіну. У `slot_spin` зберігаються `stops`, повний `grid` та масив `wins` (jsonb).
 
 ---
 
@@ -163,6 +182,23 @@ stripe trigger checkout.session.completed
 - Бій закінчується коли HP ≤ 0 (подвійний нокаут → перемагає той, у кого більший залишок HP)
 - Дедлайни раундів і стан бою — в Redis (ZSET + hash), фінальний результат — у PostgreSQL
 - **Нагорода:** кожні **6 перемог поспіль** → **+1 GC**
+
+---
+
+### Chat (WebSocket)
+
+Підключення: Socket.IO до неймспейсу `/chat` (`ws://localhost:3300/chat`). JWT передається в `auth.token` при handshake; без валідного токена сокет відключається. Усі клієнти приєднуються до спільної глобальної кімнати.
+
+**WebSocket події:**
+
+| Подія           | Напрям           | Payload       | Опис                                     |
+| --------------- | ---------------- | ------------- | ---------------------------------------- |
+| `chat:send`     | emit             | `{ content }` | Надіслати повідомлення в глобальний чат  |
+| `chat:history`  | on (при конекті) | `Message[]`   | Історія кімнати при підключенні          |
+| `chat:message`  | on               | `Message`     | Нове повідомлення (broadcast усім)       |
+| `chat:presence` | on               | `{ online }`  | Кількість унікальних онлайн-користувачів |
+
+Rate limit: не частіше **5 повідомлень / 5 c** на користувача (інакше `WsException`). Повідомлення зберігаються в Redis як обмежений список (`chat:messages:<room>`, `RPUSH` + `LTRIM`) — тримаються лише **останні 100** на кімнату, без довготривалого зберігання в БД. Історія кімнати читається з Redis при кожному конекті.
 
 ---
 
@@ -234,6 +270,15 @@ ADMIN_SECRET=your_admin_secret
 
 # CORS origin — підтримує кому-розділені URL для кількох середовищ
 FRONTEND_URL=http://localhost:3000
+
+# OAuth — провайдери + куди редіректить бекенд після успіху (токени в query)
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
+GOOGLE_CALLBACK_URL=http://localhost:3300/auth/google/callback
+DISCORD_CLIENT_ID=your_discord_client_id
+DISCORD_CLIENT_SECRET=your_discord_client_secret
+DISCORD_CALLBACK_URL=http://localhost:3300/auth/discord/callback
+FRONTEND_OAUTH_REDIRECT=http://localhost:3000/auth/callback
 
 STRIPE_API_KEY=sk_test_...
 STRIPE_RESTRICTED_KEY=rk_test_...
