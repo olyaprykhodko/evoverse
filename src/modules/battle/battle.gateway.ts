@@ -57,47 +57,6 @@ export class BattleGateway
     if (this.sweepTimer) clearInterval(this.sweepTimer);
   }
 
-  private async sweepDeadlines(): Promise<void> {
-    if (this.sweeping) return;
-    this.sweeping = true;
-    try {
-      const due = await this.battleService.claimDueRounds();
-      for (const { battleId, round } of due) {
-        const result = await this.battleService.forceResolveRound(
-          battleId,
-          round,
-        );
-        if (result) this.broadcastRound(battleId, result);
-      }
-    } catch (err) {
-      this.logger.error(`Deadline sweep failed: ${(err as Error).message}`);
-    } finally {
-      this.sweeping = false;
-    }
-  }
-
-  private broadcastRound(battleId: string, result: ResolvedRound): void {
-    this.server.to(battleId).emit('battle:round-result', {
-      round: result.round.round,
-      move1: result.round.move1,
-      move2: result.round.move2,
-      damageTo1: result.round.damageTo1,
-      damageTo2: result.round.damageTo2,
-      hp1: result.round.hp1After,
-      hp2: result.round.hp2After,
-      finished: result.finished,
-      winnerId: result.finished ? result.winnerId : null,
-      nextRound: result.finished ? null : result.nextRound,
-      roundEndsAt: result.finished ? null : result.roundEndsAt,
-    });
-
-    if (result.finished) {
-      this.server
-        .to(battleId)
-        .emit('battle:finished', { winnerId: result.winnerId });
-    }
-  }
-
   handleConnection(client: Socket): void {
     try {
       const token =
@@ -198,6 +157,47 @@ export class BattleGateway
       this.broadcastRound(battleId, result);
     } catch (err) {
       throw new WsException((err as Error).message);
+    }
+  }
+
+  private async sweepDeadlines(): Promise<void> {
+    if (this.sweeping) return;
+    this.sweeping = true;
+    try {
+      const due = await this.battleService.claimDueRounds();
+      for (const { battleId, round } of due) {
+        const result = await this.battleService.forceResolveRound(
+          battleId,
+          round,
+        );
+        if (result) this.broadcastRound(battleId, result);
+      }
+    } catch (err) {
+      this.logger.error(`Deadline sweep failed: ${(err as Error).message}`);
+    } finally {
+      this.sweeping = false;
+    }
+  }
+
+  private broadcastRound(battleId: string, result: ResolvedRound): void {
+    this.server.to(battleId).emit('battle:round-result', {
+      round: result.round.round,
+      move1: result.round.move1,
+      move2: result.round.move2,
+      damageTo1: result.round.damageTo1,
+      damageTo2: result.round.damageTo2,
+      hp1: result.round.hp1After,
+      hp2: result.round.hp2After,
+      finished: result.finished,
+      winnerId: result.finished ? result.winnerId : null,
+      nextRound: result.finished ? null : result.nextRound,
+      roundEndsAt: result.finished ? null : result.roundEndsAt,
+    });
+
+    if (result.finished) {
+      this.server
+        .to(battleId)
+        .emit('battle:finished', { winnerId: result.winnerId });
     }
   }
 }
