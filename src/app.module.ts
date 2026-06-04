@@ -15,6 +15,7 @@ import { HealthModule } from './modules/health/health.module.js';
 import { WeaponsModule } from './modules/weapons/weapons.module.js';
 import { BattleModule } from './modules/battle/battle.module.js';
 import { SlotModule } from './modules/slot/slot.module.js';
+import { ChatModule } from './modules/chat/chat.module.js';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { SlotModule } from './modules/slot/slot.module.js';
     WeaponsModule,
     BattleModule,
     SlotModule,
+    ChatModule,
   ],
   controllers: [AppController],
   providers: [],

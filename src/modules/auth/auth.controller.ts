@@ -23,6 +23,8 @@ import { JwtAccessGuard } from '../../guards/jwt-access.guard.js';
 import type { JwtPayload } from '../../strategies/jwt-access.strategy.js';
 import { GoogleAuthGuard } from '../../guards/google.guard.js';
 import { GoogleProfile } from '../../common/types/google.js';
+import { DiscordAuthGuard } from '../../guards/discord.guard.js';
+import { DiscordProfile } from '../../common/types/discord.js';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -40,6 +42,25 @@ export class AuthController {
   async googleCallback(@Req() req: Request, @Res() res: Response) {
     const response = await this.authService.validateGoogleUser(
       req.user as GoogleProfile,
+    );
+
+    const url = new URL(process.env.FRONTEND_OAUTH_REDIRECT!);
+    url.searchParams.set('accessToken', response.data!.accessToken);
+    url.searchParams.set('refreshToken', response.data!.refreshToken);
+    return res.redirect(url.toString());
+  }
+
+  @Get('discord') // discord oauth
+  @ApiOperation({ summary: 'Authentication via Discord OAuth' })
+  @UseGuards(DiscordAuthGuard)
+  discordAuth() {}
+
+  @Get('discord/callback') // discord oauth callback
+  @ApiOperation({ summary: 'Discord OAuth callback' })
+  @UseGuards(DiscordAuthGuard)
+  async discordCallback(@Req() req: Request, @Res() res: Response) {
+    const response = await this.authService.validateDiscordUser(
+      req.user as DiscordProfile,
     );
 
     const url = new URL(process.env.FRONTEND_OAUTH_REDIRECT!);

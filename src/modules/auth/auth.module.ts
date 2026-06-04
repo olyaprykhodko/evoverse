@@ -6,6 +6,7 @@ import { AuthService } from './auth.service.js';
 import { JwtAccessStrategy } from '../../strategies/jwt-access.strategy.js';
 import { JwtRefreshStrategy } from '../../strategies/jwt-refresh.strategy.js';
 import { GoogleStrategy } from '../../strategies/google.strategy.js';
+import { DiscordStrategy } from '../../strategies/discord.strategy.js';
 
 @Module({
   imports: [PassportModule, JwtModule.register({})],
@@ -15,6 +16,7 @@ import { GoogleStrategy } from '../../strategies/google.strategy.js';
     JwtAccessStrategy,
     JwtRefreshStrategy,
     GoogleStrategy,
+    DiscordStrategy,
   ],
 })
 export class AuthModule {}

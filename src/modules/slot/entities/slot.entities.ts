@@ -1,10 +1,19 @@
+import { SlotSymbol } from '../slot.constants.js';
+
 export interface SlotSession {
   serverSeed: string;
   serverHash: string;
   nonce: number;
 }
 
-export interface WinResult {
+export interface LineWin {
+  line: number;
+  symbol: SlotSymbol;
+  count: number;
   multiplier: number;
-  winType: '3oak' | '2oak' | null;
+}
+
+export interface SpinEvaluation {
+  wins: LineWin[];
+  totalMultiplier: number;
 }

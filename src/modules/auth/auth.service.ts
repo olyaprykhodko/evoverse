@@ -13,6 +13,7 @@ import { sendResponse } from '../../common/utils/response.js';
 import type { JwtPayload } from '../../strategies/jwt-access.strategy.js';
 import * as argon2 from 'argon2';
 import { GoogleProfile } from '../../common/types/google.js';
+import { DiscordProfile } from '../../common/types/discord.js';
 
 @Injectable()
 export class AuthService {
@@ -96,22 +97,50 @@ export class AuthService {
     return sendResponse('Logged out successfully', 200);
   }
 
-  async validateGoogleUser(profile: GoogleProfile) {
-    const { googleId, email, displayName, avatar } = profile;
+  validateGoogleUser(profile: GoogleProfile) {
+    return this.findOrCreateOAuthUser({
+      provider: 'google',
+      providerId: profile.googleId,
+      email: profile.email,
+      displayName: profile.displayName,
+      avatar: profile.avatar,
+    });
+  }
+
+  validateDiscordUser(profile: DiscordProfile) {
+    return this.findOrCreateOAuthUser({
+      provider: 'discord',
+      providerId: profile.discordId,
+      email: profile.email,
+      displayName: profile.displayName,
+      avatar: profile.avatar,
+    });
+  }
+
+  /**
+   * Shared OAuth find-or-create: look up by provider id, otherwise link to an
+   * existing email account, otherwise create a fresh user (with profile +
+   * wallet). Issues our own JWT pair so the rest of the app is provider-agnostic.
+   */
+  private async findOrCreateOAuthUser(params: {
+    provider: 'google' | 'discord';
+    providerId: string;
+    email: string;
+    displayName: string;
+    avatar?: string;
+  }) {
+    const { provider, providerId, email, displayName, avatar } = params;
+    const providerLink =
+      provider === 'google'
+        ? { googleId: providerId }
+        : { discordId: providerId };
 
     let user = await this.prisma.users.findFirst({
-      where: {
-        googleId,
-        isDeleted: false,
-      },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        isBanned: true,
-      },
+      where: { ...providerLink, isDeleted: false },
+      select: { id: true, email: true, role: true, isBanned: true, banEndAt: true },
     });
 
+    // First OAuth sign-in for an address that already has an account → link it
     if (!user && email) {
       const byEmail = await this.prisma.users.findFirst({
         where: { email, isDeleted: false },
@@ -120,14 +149,8 @@ export class AuthService {
       if (byEmail) {
         user = await this.prisma.users.update({
           where: { id: byEmail.id },
-          data: { googleId },
-          select: {
-            id: true,
-            email: true,
-            role: true,
-            isBanned: true,
-            banEndAt: true,
-          },
+          data: providerLink,
+          select: { id: true, email: true, role: true, isBanned: true, banEndAt: true },
         });
       }
     }
@@ -135,24 +158,21 @@ export class AuthService {
     if (!user) {
       user = await this.prisma.users.create({
         data: {
-          googleId,
+          ...providerLink,
           email,
           username: displayName,
           profile: { create: { rating: 0, ...(avatar ? { avatar } : {}) } },
           wallet: { create: {} },
         },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          isBanned: true,
-          banEndAt: true,
-        },
+        select: { id: true, email: true, role: true, isBanned: true, banEndAt: true },
       });
     }
 
     if (user.isBanned) {
-      throw new ForbiddenException(`Account is banned`);
+      const bannedUntil = user.banEndAt
+        ? ` until ${user.banEndAt.toISOString()}`
+        : ' permanently';
+      throw new ForbiddenException(`Account is banned${bannedUntil}`);
     }
 
     const tokens = await this.generateTokens({
