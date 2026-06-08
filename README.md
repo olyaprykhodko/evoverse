@@ -27,15 +27,15 @@ REST + WebSocket API для iGaming платформи GlowVerse. Включає
 
 ### Auth `/auth`
 
-| Метод | Маршрут                 | Guard   | Опис                                             |
-| ----- | ----------------------- | ------- | ------------------------------------------------ |
-| POST  | `/auth/login`           | —       | email + password → `accessToken`, `refreshToken` |
-| POST  | `/auth/refresh`         | Refresh | `{ refreshToken }` в body → нові токени          |
-| POST  | `/auth/logout`          | Bearer  | Інвалідація сесії в Redis                        |
-| GET   | `/auth/google`          | Google  | Старт Google OAuth (редірект на Google)          |
-| GET   | `/auth/google/callback` | Google  | Callback → редірект на фронт із токенами         |
-| GET   | `/auth/discord`         | Discord | Старт Discord OAuth (редірект на Discord)        |
-| GET   | `/auth/discord/callback`| Discord | Callback → редірект на фронт із токенами         |
+| Метод | Маршрут                  | Guard   | Опис                                             |
+| ----- | ------------------------ | ------- | ------------------------------------------------ |
+| POST  | `/auth/login`            | —       | email + password → `accessToken`, `refreshToken` |
+| POST  | `/auth/refresh`          | Refresh | `{ refreshToken }` в body → нові токени          |
+| POST  | `/auth/logout`           | Bearer  | Інвалідація сесії в Redis                        |
+| GET   | `/auth/google`           | Google  | Старт Google OAuth (редірект на Google)          |
+| GET   | `/auth/google/callback`  | Google  | Callback → редірект на фронт із токенами         |
+| GET   | `/auth/discord`          | Discord | Старт Discord OAuth (редірект на Discord)        |
+| GET   | `/auth/discord/callback` | Discord | Callback → редірект на фронт із токенами         |
 
 Access-токен живе 15 хв, refresh — 7 днів. Refresh-токен зберігається в Redis; logout видаляє запис.
 
@@ -112,18 +112,18 @@ stripe trigger checkout.session.completed
 
 Виплата = `bet × multiplier`. Нуль (0) програє всі ставки, окрім `STRAIGHT` на 0. Списання та нарахування — в одній транзакції wallet.
 
-**Provably fair:** `winningNumber = HMAC-SHA256(serverSeed, clientSeed:nonce) % 37`. `serverHash = SHA256(serverSeed)` публікується до гри, `serverSeed` — після.
+**Provably fair:** `winningNumber = HMAC-SHA256(serverSeed, clientSeed:nonce) % 37`, де `clientSeed = SHA256(відсортовані clientSeed усіх ставок раунду)`. `serverHash = SHA256(serverSeed)` публікується до ставок, а `clientSeed` фіксується лише після їх закриття — тож сервер не знає результат під час прийому ставок, і жоден гравець його не контролює. Після спіну розкриваються `serverSeed` і `clientSeed`; перевірити можна через `/roulette/verify` тією ж формулою.
 
 ---
 
 ### Slot `/slot`
 
-| Метод | Маршрут                | Guard  | Опис                                                         |
-| ----- | ---------------------- | ------ | ------------------------------------------------------------ |
-| GET   | `/slot/session`        | Bearer | Отримати або створити сесію → `{ serverHash, nonce }`        |
-| POST  | `/slot/spin`           | Bearer | Спін `{ bet, clientSeed }` → грід + лінії + GC баланс        |
-| GET   | `/slot/history?limit=` | Bearer | Історія спінів                                               |
-| POST  | `/slot/verify`         | —      | Публічна верифікація `{ serverSeed, clientSeed, nonce }`     |
+| Метод | Маршрут                | Guard  | Опис                                                     |
+| ----- | ---------------------- | ------ | -------------------------------------------------------- |
+| GET   | `/slot/session`        | Bearer | Отримати або створити сесію → `{ serverHash, nonce }`    |
+| POST  | `/slot/spin`           | Bearer | Спін `{ bet, clientSeed }` → грід + лінії + GC баланс    |
+| GET   | `/slot/history?limit=` | Bearer | Історія спінів                                           |
+| POST  | `/slot/verify`         | —      | Публічна верифікація `{ serverSeed, clientSeed, nonce }` |
 
 Ставки у **GC (Glow Coins)**. **5 барабанів × 3 ряди**, 8 символів (7 звичайних + `WILD`), **5 ліній виплат**. Фіксовані стрічки (32 позиції на барабан) → детермінований RTP ≈ **95%** (виміряно симулятором `scripts/slot-sim.mjs`).
 
