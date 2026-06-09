@@ -17,6 +17,8 @@ export interface SpinResult {
   winningNumber: number;
   serverSeed: string;
   serverHash: string;
+
+  clientSeed: string;
   roundNonce: number;
   totalBets: number;
 }

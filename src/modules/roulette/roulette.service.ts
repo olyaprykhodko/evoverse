@@ -23,7 +23,7 @@ import { checkWin } from './helpers/checkWin.js';
 
 import { PlaceRoomBetDto } from './dto/place-room-bet.dto.js';
 import { VerifyGameDto } from './dto/verify-game.dto.js';
-import type { RoomMeta } from './entities/room-entities.js';
+import type { RoomMeta, SpinResult } from './entities/room-entities.js';
 import type { Bet } from './entities/bet-entities.js';
 import { BetType } from './entities/bet-entities.js';
 import {
@@ -255,19 +255,25 @@ export class RouletteService {
       const betStrings = await redis.lrange(betsKey, 0, -1);
       const bets = betStrings.map((b) => JSON.parse(b) as Bet);
 
+      // Provably fair: the result mixes the committed serverSeed with entropy
+      // that only exists after betting closes — the combined client seed of all
+      // players. The server cannot know the outcome while bets are open, and no
+      // single player controls it.
+      const clientSeed = this.combineClientSeeds(bets);
       const hmac = crypto.createHmac('sha256', meta.serverSeed);
-      hmac.update(String(meta.roundNonce));
+      hmac.update(`${clientSeed}:${meta.roundNonce}`);
       const winningNumber =
         parseInt(hmac.digest('hex').substring(0, 8), 16) % 37;
 
       await redis.del(metaKey, betsKey);
-      await this.settleRoomBets(bets, winningNumber, meta, tableId);
+      await this.settleRoomBets(bets, winningNumber, meta, tableId, clientSeed);
 
-      const result = {
+      const result: SpinResult = {
         tableId,
         winningNumber,
         serverSeed: meta.serverSeed,
         serverHash: meta.serverHash,
+        clientSeed,
         roundNonce: meta.roundNonce,
         totalBets: bets.length,
       };
@@ -284,6 +290,7 @@ export class RouletteService {
     winningNumber: number,
     meta: RoomMeta,
     tableId: string,
+    clientSeed: string,
   ): Promise<void> {
     const betsByUser = new Map<number, Bet[]>();
     for (const bet of bets) {
@@ -291,7 +298,14 @@ export class RouletteService {
     }
     await Promise.allSettled(
       [...betsByUser.entries()].map(([userId, userBets]) =>
-        this.settleUserBets(userId, userBets, winningNumber, meta, tableId),
+        this.settleUserBets(
+          userId,
+          userBets,
+          winningNumber,
+          meta,
+          tableId,
+          clientSeed,
+        ),
       ),
     );
   }
@@ -302,6 +316,7 @@ export class RouletteService {
     winningNumber: number,
     meta: RoomMeta,
     tableId: string,
+    clientSeed: string,
   ): Promise<void> {
     const wallet = await this.prisma.wallet.findUnique({
       where: { userId },
@@ -318,6 +333,7 @@ export class RouletteService {
           userId,
           serverSeed: meta.serverSeed,
           serverHash: meta.serverHash,
+          clientSeed,
           nonce: meta.roundNonce,
           isOpen: false,
         },
@@ -368,6 +384,11 @@ export class RouletteService {
         err,
       );
     }
+  }
+
+  private combineClientSeeds(bets: Bet[]): string {
+    const seeds = bets.map((b) => b.clientSeed).sort();
+    return crypto.createHash('sha256').update(seeds.join('|')).digest('hex');
   }
 
   verifyResult(dto: VerifyGameDto) {
