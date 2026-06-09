@@ -8,7 +8,7 @@ import { Resend } from 'resend';
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
-  private readonly resend = new Resend(process.env.RESEND_API_KEY || '');
+  private readonly resend = new Resend(process.env.RESEND_API_KEY);
 
   async sendVerificationEmail(to: string, link: string): Promise<void> {
     const { data, error } = await this.resend.emails.send({
