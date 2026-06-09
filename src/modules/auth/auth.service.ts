@@ -117,11 +117,6 @@ export class AuthService {
     });
   }
 
-  /**
-   * Shared OAuth find-or-create: look up by provider id, otherwise link to an
-   * existing email account, otherwise create a fresh user (with profile +
-   * wallet). Issues our own JWT pair so the rest of the app is provider-agnostic.
-   */
   private async findOrCreateOAuthUser(params: {
     provider: 'google' | 'discord';
     providerId: string;
@@ -137,10 +132,15 @@ export class AuthService {
 
     let user = await this.prisma.users.findFirst({
       where: { ...providerLink, isDeleted: false },
-      select: { id: true, email: true, role: true, isBanned: true, banEndAt: true },
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        isBanned: true,
+        banEndAt: true,
+      },
     });
 
-    // First OAuth sign-in for an address that already has an account → link it
     if (!user && email) {
       const byEmail = await this.prisma.users.findFirst({
         where: { email, isDeleted: false },
@@ -150,7 +150,13 @@ export class AuthService {
         user = await this.prisma.users.update({
           where: { id: byEmail.id },
           data: providerLink,
-          select: { id: true, email: true, role: true, isBanned: true, banEndAt: true },
+          select: {
+            id: true,
+            email: true,
+            role: true,
+            isBanned: true,
+            banEndAt: true,
+          },
         });
       }
     }
@@ -161,10 +167,17 @@ export class AuthService {
           ...providerLink,
           email,
           username: displayName,
+          emailVerified: true,
           profile: { create: { rating: 0, ...(avatar ? { avatar } : {}) } },
           wallet: { create: {} },
         },
-        select: { id: true, email: true, role: true, isBanned: true, banEndAt: true },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          isBanned: true,
+          banEndAt: true,
+        },
       });
     }
 
