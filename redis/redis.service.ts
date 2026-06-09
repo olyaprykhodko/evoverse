@@ -55,4 +55,25 @@ export class RedisService implements OnModuleDestroy {
   async deleteSession(userId: number): Promise<void> {
     await this.redis.del(this.sessionKey(userId));
   }
+
+  async storeEmailVerifyToken(userId: number, rawToken: string): Promise<void> {
+    await this.redis.set(
+      this.emailVerifyKey(this.hashToken(rawToken)),
+      String(userId),
+      'EX',
+      60 * 60 * 24,
+    );
+  }
+
+  async consumeEmailVerifyToken(rawToken: string): Promise<number | null> {
+    const key = this.emailVerifyKey(this.hashToken(rawToken));
+    const userId = await this.redis.get(key);
+    if (!userId) return null;
+    await this.redis.del(key);
+    return Number(userId);
+  }
+
+  private emailVerifyKey(tokenHash: string): string {
+    return `email:verify:${tokenHash}`;
+  }
 }

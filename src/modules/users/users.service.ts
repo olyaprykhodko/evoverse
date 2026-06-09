@@ -13,11 +13,16 @@ import { Role } from '../../../generated/prisma/enums.js';
 import { sendResponse } from '../../common/utils/response.js';
 import * as argon2 from 'argon2';
 
+import { VerificationService } from '../auth/verification.service.js';
+
 @Injectable()
 export class UsersService {
   private readonly logger = new Logger(UsersService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly verificationService: VerificationService,
+  ) {}
 
   async create(createUserDto: CreateUserDto) {
     const { username, password, email } = createUserDto;
@@ -31,7 +36,7 @@ export class UsersService {
     const hashedPassword = await argon2.hash(password);
 
     try {
-      await this.prisma.users.create({
+      const user = await this.prisma.users.create({
         data: {
           username: username ?? null,
           password: hashedPassword,
@@ -44,7 +49,12 @@ export class UsersService {
             create: {},
           },
         },
+        select: {
+          id: true,
+          email: true,
+        },
       });
+      await this.verificationService.createAndSend(user.id, email);
     } catch (err) {
       this.logger.error('Failed to create user', err);
       throw new InternalServerErrorException();
@@ -60,6 +70,7 @@ export class UsersService {
         id: true,
         username: true,
         email: true,
+        emailVerified: true,
         role: true,
         isBanned: true,
         banEndAt: true,

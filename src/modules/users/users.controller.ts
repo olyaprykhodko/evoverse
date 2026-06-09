@@ -15,6 +15,7 @@ import { UsersService } from './users.service.js';
 import { CreateUserDto } from './dto/create-user.dto.js';
 import { UpdateUserDto } from './dto/update-user.dto.js';
 import { JwtAccessGuard } from '../../guards/jwt-access.guard.js';
+import { EmailVerifiedGuard } from '../../guards/email-verified.guard.js';
 import type { JwtPayload } from '../../strategies/jwt-access.strategy.js';
 import {
   ApiTags,
@@ -72,7 +73,7 @@ export class UsersController {
   @ApiNotFoundResponse({ description: 'Not Found' })
   @ApiConflictResponse({ description: 'Conflict – email already taken' })
   @ApiGoneResponse({ description: 'Gone – account has been deleted' })
-  @UseGuards(JwtAccessGuard)
+  @UseGuards(JwtAccessGuard, EmailVerifiedGuard)
   update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserDto: UpdateUserDto,
