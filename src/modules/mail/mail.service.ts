@@ -14,7 +14,7 @@ export class MailService {
     const { data, error } = await this.resend.emails.send({
       from: process.env.MAIL_FROM!,
       to,
-      subject: 'Verify your email · GlowVerse',
+      subject: 'Verify your email',
       html: this.verificationHtml(link),
     });
 
@@ -50,10 +50,6 @@ export class MailService {
               </td>
             </tr>
           </table>
-          <p style="color:#6b7280;font-size:12px;line-height:1.6;margin:0;">
-            If the button doesn't work, paste this link into your browser:<br/>
-            <a href="${link}" style="color:#00ff87;word-break:break-all;">${link}</a>
-          </p>
         </td>
       </tr>
       <tr>
