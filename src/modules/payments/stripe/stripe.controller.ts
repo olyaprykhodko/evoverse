@@ -21,7 +21,6 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { JwtAccessGuard } from '../../../guards/jwt-access.guard.js';
-import { EmailVerifiedGuard } from '../../../guards/email-verified.guard.js';
 import type { JwtPayload } from '../../../strategies/jwt-access.strategy.js';
 
 @ApiTags('Stripe')
@@ -37,7 +36,7 @@ export class StripeController {
   @Post('checkout-session') // create checkout
   @HttpCode(HttpStatus.CREATED)
   @ApiBearerAuth('JWT')
-  @UseGuards(JwtAccessGuard, EmailVerifiedGuard)
+  @UseGuards(JwtAccessGuard)
   @ApiOperation({ summary: 'Create Stripe Checkout Session' })
   @ApiResponse({ status: 201, description: 'Checkout session URL returned.' })
   @ApiResponse({ status: 400, description: 'Validation error.' })

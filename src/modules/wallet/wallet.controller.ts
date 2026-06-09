@@ -18,7 +18,6 @@ import {
 } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { JwtAccessGuard } from '../../guards/jwt-access.guard.js';
-import { EmailVerifiedGuard } from '../../guards/email-verified.guard.js';
 import { WalletService } from './wallet.service.js';
 import { ConvertCoinsDto } from './dto/convert-coins.dto.js';
 import { BuyCoinsDto } from './dto/buy-coins.dto.js';
@@ -103,7 +102,6 @@ export class WalletController {
   }
 
   @Post('coins/convert') // exchange coins to USD
-  @UseGuards(EmailVerifiedGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Cash out Glow Coins to USD balance',
@@ -120,7 +118,6 @@ export class WalletController {
   }
 
   @Post('coins/buy') // buy in-game coins
-  @UseGuards(EmailVerifiedGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Buy Glow Coins with USD balance',

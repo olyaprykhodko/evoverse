@@ -273,7 +273,6 @@ jobs:
             echo "STRIPE_WEBHOOK_SECRET=${{ secrets.STRIPE_WEBHOOK_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
             echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
             echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}" >> ${{ env.ENV_FILE_PATH }}
-            echo "RESEND_API_KEY=${{ secrets.RESEND_API_KEY}}" >> ${{ env.ENV_FILE_PATH }}
             # fetch variables
             echo "APP_EXTERNAL_PORT=${{ vars.APP_EXTERNAL_PORT }}" >> ${{ env.ENV_FILE_PATH }}
             echo "JWT_ACCESS_EXPIRES_IN=${{ vars.JWT_ACCESS_EXPIRES_IN }}" >> ${{ env.ENV_FILE_PATH }}
@@ -291,7 +290,6 @@ jobs:
             echo "FRONTEND_OAUTH_REDIRECT=${{vars.FRONTEND_OAUTH_REDIRECT}}" >> ${{ env.ENV_FILE_PATH }}
             echo "DISCORD_CLIENT_ID=${{vars.DISCORD_CLIENT_ID}}" >> ${{ env.ENV_FILE_PATH }}
             echo "DISCORD_CALLBACK_URL=${{vars.DISCORD_CALLBACK_URL}}" >> ${{ env.ENV_FILE_PATH }}
-            echo "MAIL_FROM=${{vars.MAIL_FROM}}" >> ${{ env.ENV_FILE_PATH }}
             # replace image string in compose
             sed -i 's|cicd_final_image|${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ needs.init.outputs.short_sha }}-${{ vars.ENVIRONMENT_NAME }}|g' ${{ env.DEPLOY_DIR }}/${{ env.DOCKER_COMPOSE_FILE }}
             # deploy

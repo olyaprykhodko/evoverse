@@ -25,15 +25,11 @@ import { GoogleAuthGuard } from '../../guards/google.guard.js';
 import { GoogleProfile } from '../../common/types/google.js';
 import { DiscordAuthGuard } from '../../guards/discord.guard.js';
 import { DiscordProfile } from '../../common/types/discord.js';
-import { VerificationService } from './verification.service.js';
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly verificationService: VerificationService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @Get('google') // google oauth
   @ApiOperation({ summary: 'Authentication via Google OAuth' })
@@ -81,18 +77,6 @@ export class AuthController {
   })
   login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
-  }
-
-  @Post('verify-email') // get email verification link
-  @ApiOperation({ summary: 'Confirm email with token from the link' })
-  verifyEmail(@Body('token') token: string) {
-    return this.verificationService.verify(token);
-  }
-
-  @Post('retry-verification') // resend verification link
-  @ApiOperation({ summary: 'Resend verification email' })
-  resend(@Body('email') email: string) {
-    return this.verificationService.resend(email);
   }
 
   @Post('refresh') // refresh token

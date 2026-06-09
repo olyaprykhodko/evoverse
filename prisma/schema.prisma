@@ -15,22 +15,21 @@ enum Role {
 }
 
 model Users {
-  id            Int       @id @default(autoincrement()) @map("id")
-  username      String?   @unique @map("username")
-  password      String?   @map("password")
-  email         String?   @unique @map("email")
-  emailVerified Boolean   @default(false) @map("email_verified")
-  googleId      String?   @unique @map("google_id")
-  discordId     String?   @unique @map("discord_id")
-  isBanned      Boolean   @default(false) @map("is_banned")
-  isDeleted     Boolean   @default(false) @map("is_deleted")
-  banEndAt      DateTime? @map("ban_end_at")
-  role          Role      @default(USER) @map("role")
-  lastLoginIP   String?   @map("last_login_ip")
-  lastLoginAt   DateTime? @default(now()) @map("last_login_at")
-  createdAt     DateTime? @default(now()) @map("created_at")
-  updatedAt     DateTime? @updatedAt @map("updated_at")
-  deletedAt     DateTime? @map("deleted_at")
+  id          Int       @id @default(autoincrement()) @map("id")
+  username    String?   @unique @map("username")
+  password    String?   @map("password")
+  email       String?   @unique @map("email")
+  googleId    String?   @unique @map("google_id")
+  discordId   String?   @unique @map("discord_id")
+  isBanned    Boolean   @default(false) @map("is_banned")
+  isDeleted   Boolean   @default(false) @map("is_deleted")
+  banEndAt    DateTime? @map("ban_end_at")
+  role        Role      @default(USER) @map("role")
+  lastLoginIP String?   @map("last_login_ip")
+  lastLoginAt DateTime? @default(now()) @map("last_login_at")
+  createdAt   DateTime? @default(now()) @map("created_at")
+  updatedAt   DateTime? @updatedAt @map("updated_at")
+  deletedAt   DateTime? @map("deleted_at")
 
   profile      Profiles?
   address      Addresses?
