@@ -7,9 +7,10 @@ import { JwtAccessStrategy } from '../../strategies/jwt-access.strategy.js';
 import { JwtRefreshStrategy } from '../../strategies/jwt-refresh.strategy.js';
 import { GoogleStrategy } from '../../strategies/google.strategy.js';
 import { DiscordStrategy } from '../../strategies/discord.strategy.js';
+import { VerificationModule } from './verification.module.js';
 
 @Module({
-  imports: [PassportModule, JwtModule.register({})],
+  imports: [PassportModule, JwtModule.register({}), VerificationModule],
   controllers: [AuthController],
   providers: [
     AuthService,
